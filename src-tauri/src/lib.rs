@@ -14,6 +14,10 @@ pub struct Pedido {
     pub items: Option<serde_json::Value>, // API uses 'items'
 }
 
+mod engine;
+use engine::image_matcher::{find_most_similar, SimilarImageResult};
+use std::path::PathBuf;
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 async fn buscar_pedidos(url: String) -> Result<Vec<Pedido>, String> {
@@ -38,11 +42,28 @@ async fn buscar_pedidos(url: String) -> Result<Vec<Pedido>, String> {
     Ok(pedidos)
 }
 
+#[tauri::command]
+async fn buscar_imagem_similar(
+    reference_path: String,
+    storage_path: String,
+    threshold: u32
+) -> Result<Option<SimilarImageResult>, String> {
+    let ref_p = PathBuf::from(reference_path);
+    let store_p = PathBuf::from(storage_path);
+    
+    // Non-blocking wrapper for CPU-heavy search
+    let result = tokio::task::spawn_blocking(move || {
+        find_most_similar(&ref_p, &store_p, threshold)
+    }).await.map_err(|e| format!("Erro na execução da busca: {}", e))?;
+
+    Ok(result)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![buscar_pedidos])
+        .invoke_handler(tauri::generate_handler![buscar_pedidos, buscar_imagem_similar])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
