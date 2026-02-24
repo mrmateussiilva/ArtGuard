@@ -16,21 +16,26 @@ pub struct Pedido {
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-async fn buscar_pedidos(url: String) -> Result<Vec<Pedido>, String> {
+async fn buscar_pedidos(url: String) -> Result<serde_json::Value, String> {
     let response = reqwest::get(&url)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Erro de conexão: {}", e))?;
 
     if !response.status().is_success() {
         return Err(format!("Erro na API: {}", response.status()));
     }
 
-    let pedidos = response
-        .json::<Vec<Pedido>>()
+    let body = response
+        .text()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| format!("Erro ao ler corpo da resposta: {}", e))?;
 
-    Ok(pedidos)
+    println!("Corpo recebido: {}", body); // Log for the terminal
+
+    let json: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| format!("Erro ao decodificar JSON: {} | Body: {}", e, body))?;
+
+    Ok(json)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

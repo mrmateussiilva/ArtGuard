@@ -40,9 +40,13 @@ function App() {
     setLoading(true);
     setError(null);
     try {
-      const response = await invoke<Pedido[]>("buscar_pedidos", { url });
-      console.log("Pedidos recebidos:", response);
-      setPedidos(response);
+      const response = await invoke<any>("buscar_pedidos", { url });
+      console.log("Resposta Completa da API:", response);
+
+      // Se a resposta vier em um campo 'data' ou algo assim, ajustamos aqui.
+      // Assumindo que a API retorna um array diretamente conforme o OpenAPI.
+      const data = Array.isArray(response) ? response : response.data || [];
+      setPedidos(data);
     } catch (err: any) {
       console.error("Erro ao buscar pedidos:", err);
       setError(err.toString());
