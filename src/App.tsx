@@ -17,17 +17,21 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 
+interface Item {
+  tipo_producao?: string;
+  largura?: string;
+  altura?: string;
+  tecido?: string;
+  imagem?: string;
+  descricao?: string;
+}
+
 interface Pedido {
   id?: number;
   numero?: string;
   cliente?: string;
-  valor_total?: string | number;
-  status?: string;
-  data_entrada?: string;
   data_entrega?: string;
-  vendedor?: string;
-  designer?: string;
-  items?: any[];
+  items?: Item[];
 }
 
 function App() {
@@ -36,14 +40,15 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const formatarMoeda = (valor: string | number | undefined) => {
-    if (valor === undefined || valor === null) return "R$ 0,00";
-    const num = typeof valor === "string" ? parseFloat(valor.replace(",", ".")) : valor;
-    if (isNaN(num)) return "R$ 0,00";
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(num);
+  // Helper to get image URL
+  const getImageUrl = (path: string | undefined) => {
+    if (!path) return "";
+    try {
+      const urlObj = new URL(url);
+      return `${urlObj.origin}${path}`;
+    } catch {
+      return path;
+    }
   };
 
   async function handleBuscar() {
@@ -107,82 +112,61 @@ function App() {
 
         {!loading && !error && pedidos.length > 0 && (
           <Box>
-            {pedidos.map((pedido, index) => {
-              // Pegar vendedor/designer do primeiro item se não houver no topo
-              const vendedor = pedido.vendedor || (pedido.items?.[0]?.vendedor);
-              const designer = pedido.designer || (pedido.items?.[0]?.designer);
-
-              return (
-                <Accordion key={pedido.id || index} sx={{ mb: 1 }}>
-                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                    <Box sx={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: "bold", width: "150px" }}>
-                        #{pedido.numero || pedido.id || "N/A"}
+            {pedidos.map((pedido, index) => (
+              <Accordion key={pedido.id || index} sx={{ mb: 1 }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                  <Box sx={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
+                    <Box sx={{ display: "flex", gap: 4, alignItems: "center", flexGrow: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: "bold", minWidth: 100 }}>
+                        ID: {pedido.id || pedido.numero || "N/A"}
                       </Typography>
-                      <Typography variant="body1" sx={{ flexGrow: 1 }}>
+                      <Typography variant="body1" sx={{ fontWeight: "bold", minWidth: 200 }}>
                         {pedido.cliente || "Sem Nome"}
                       </Typography>
-                      <Typography variant="body1" color="primary" sx={{ fontWeight: "bold", width: "120px", textAlign: "right", mr: 2 }}>
-                        {formatarMoeda(pedido.valor_total)}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{
-                          px: 1,
-                          py: 0.5,
-                          borderRadius: 1,
-                          bgcolor: "grey.200",
-                          textTransform: "uppercase",
-                          minWidth: "100px",
-                          textAlign: "center"
-                        }}
-                      >
-                        {pedido.status || "N/A"}
+                      <Typography variant="body2" color="text.secondary">
+                        Entrega: {pedido.data_entrega || "N/A"}
                       </Typography>
                     </Box>
-                  </AccordionSummary>
-                  <AccordionDetails>
-                    <Divider sx={{ mb: 2 }} />
-                    <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <Typography variant="caption" color="text.secondary">Vendedor</Typography>
-                        <Typography variant="body2">{vendedor || "N/A"}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: "bold", bgcolor: "primary.light", color: "white", px: 2, py: 0.5, borderRadius: 10 }}>
+                      {pedido.items?.length || 0} itens
+                    </Typography>
+                  </Box>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="h6" gutterBottom sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+                    Itens do Pedido
+                  </Typography>
+                  <Grid container spacing={3}>
+                    {pedido.items?.map((item, i) => (
+                      <Grid size={{ xs: 12, md: 6 }} key={i}>
+                        <Paper variant="outlined" sx={{ p: 2, display: "flex", gap: 2, alignItems: "center" }}>
+                          <Box
+                            component="img"
+                            src={getImageUrl(item.imagem)}
+                            sx={{ width: 100, height: 100, objectFit: "cover", borderRadius: 1, bgcolor: "grey.100" }}
+                            alt={item.descricao || "Imagem do item"}
+                            onError={(e: any) => { e.target.src = "https://placehold.co/100x100?text=Sem+Imagem"; }}
+                          />
+                          <Box sx={{ flexGrow: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: "bold", color: "primary.main", textTransform: "uppercase" }}>
+                              {item.tipo_producao || "Tipo N/A"}
+                            </Typography>
+                            <Divider sx={{ my: 0.5 }} />
+                            <Typography variant="body2">
+                              <strong>Medida:</strong> {item.largura} x {item.altura}
+                            </Typography>
+                            <Typography variant="body2">
+                              <strong>Material:</strong> {item.tecido || "N/A"}
+                            </Typography>
+                          </Box>
+                        </Paper>
                       </Grid>
-                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <Typography variant="caption" color="text.secondary">Designer</Typography>
-                        <Typography variant="body2">{designer || "N/A"}</Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <Typography variant="caption" color="text.secondary">Data Entrada</Typography>
-                        <Typography variant="body2">{pedido.data_entrada || "N/A"}</Typography>
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                        <Typography variant="caption" color="text.secondary">Data Entrega</Typography>
-                        <Typography variant="body2">{pedido.data_entrega || "N/A"}</Typography>
-                      </Grid>
-
-                      <Grid size={{ xs: 12 }}>
-                        <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: "bold" }}>
-                          Itens do Pedido ({pedido.items?.length || 0})
-                        </Typography>
-                        <Box sx={{ bgcolor: "grey.50", p: 2, borderRadius: 1 }}>
-                          <pre style={{ margin: 0, fontSize: "0.8rem", overflowX: "auto" }}>
-                            {JSON.stringify(pedido.items, null, 2)}
-                          </pre>
-                        </Box>
-                      </Grid>
-
-                      <Grid size={{ xs: 12 }}>
-                        <Typography variant="caption" color="text.secondary">Dados Brutos (Debug)</Typography>
-                        <Box sx={{ bgcolor: "grey.100", p: 1, borderRadius: 1, fontSize: "0.7rem", color: "text.secondary" }}>
-                          ID: {pedido.id} | Número: {pedido.numero}
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              );
-            })}
+                    ))}
+                  </Grid>
+                </AccordionDetails>
+              </Accordion>
+            ))}
           </Box>
         )}
 
@@ -192,7 +176,7 @@ function App() {
           </Typography>
         )}
       </Box>
-    </Container>
+    </Container >
   );
 }
 
