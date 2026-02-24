@@ -30,14 +30,12 @@ import {
 } from "@mui/material";
 import { open } from "@tauri-apps/plugin-dialog";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
 import AssignmentIcon from "@mui/icons-material/Assignment";
@@ -93,11 +91,13 @@ interface ValidationModalProps {
 }
 
 const STAGES_CONFIG = [
-  { id: "localizing", label: "Localizando imagens", icon: <ImageSearchIcon fontSize="small" /> },
-  { id: "embedding", label: "Gerando embeddings", icon: <AutoAwesomeIcon fontSize="small" /> },
-  { id: "comparing", label: "Comparando similaridade", icon: <CompareArrowsIcon fontSize="small" /> },
+  { id: "downloading", label: "Baixando referência", icon: <LayersIcon fontSize="small" /> },
+  { id: "normalizing", label: "Normalizando imagem", icon: <AutoAwesomeIcon fontSize="small" /> },
+  { id: "hashing", label: "Gerando hashes", icon: <ShieldIcon fontSize="small" /> },
+  { id: "loading_index", label: "Carregando índice", icon: <AssignmentIcon fontSize="small" /> },
+  { id: "matching", label: "Buscando match", icon: <ImageSearchIcon fontSize="small" /> },
   { id: "scoring", label: "Calculando score", icon: <AnalyticsIcon fontSize="small" /> },
-  { id: "finalizing", label: "Finalizando validação", icon: <DoneAllIcon fontSize="small" /> },
+  { id: "finalizing", label: "Finalizando", icon: <DoneAllIcon fontSize="small" /> },
 ];
 
 function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: ValidationModalProps) {
@@ -114,9 +114,9 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
       const startValidation = async () => {
         const unlisten = await listen<any>("validation-stage", (event) => {
           const { stage, status, data } = event.payload;
-          setPhases(prev => prev.map(p =>
-            p.id === stage ? { ...p, status } : p
-          ));
+          setPhases(prev =>
+            prev.map(p => (p.id === stage ? { ...p, status } : p))
+          );
           if (stage === "finalizing" && status === "success" && data) {
             setResult(data);
           }
@@ -301,7 +301,7 @@ function App() {
       const selected = await open({
         directory: true,
         multiple: false,
-        title: "Selecionar Pasta de Armazenamento",
+        title: "Selecionar Pasta de Produção",
       });
       if (selected) {
         setStoragePath(selected as string);
@@ -309,6 +309,20 @@ function App() {
     } catch (err: any) {
       console.error("Erro ao selecionar pasta:", err);
       setError("Erro ao abrir seletor de pastas: " + err.toString());
+    }
+  };
+
+  const handleIndexStorage = async () => {
+    if (!storagePath) return;
+    try {
+      setLoading(true);
+      const result = await invoke("index_storage", { storagePath });
+      alert(result);
+    } catch (err) {
+      console.error("Index error:", err);
+      alert("Falha ao indexar: " + err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -649,30 +663,6 @@ function App() {
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12 }}>
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
-                      Pasta de Armazenamento
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1 }}>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        value={storagePath}
-                        slotProps={{ input: { readOnly: true } }}
-                        sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
-                      />
-                      <IconButton
-                        onClick={selecionarPasta}
-                        sx={{
-                          bgcolor: "#F3F4F6",
-                          borderRadius: "8px",
-                          border: "1px solid #E5E7EB"
-                        }}
-                      >
-                        <FolderOpenIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Grid>
                 </Grid>
               </Paper>
 
@@ -709,6 +699,39 @@ function App() {
                     />
                   </Grid>
                 </Grid>
+              </Paper>
+
+              <Paper sx={{ p: 4, borderRadius: "24px", boxShadow: "0 10px 40px rgba(0,0,0,0.04)", mb: 3 }}>
+                <Typography variant="h6" sx={{ mb: 4, fontWeight: 700, color: "#1e293b" }}>
+                  Fonte de Dados Local
+                </Typography>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+                  <TextField
+                    fullWidth
+                    label="Caminho da Pasta de Produção"
+                    value={storagePath}
+                    onChange={(e) => setStoragePath(e.target.value)}
+                    placeholder="/home/usuario/producao"
+                    variant="outlined"
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: "12px" } }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={selecionarPasta}
+                    sx={{ height: 56, borderRadius: "12px", px: 3, bgcolor: "#111827", "&:hover": { bgcolor: "#1f2937" } }}
+                  >
+                    Procurar
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleIndexStorage}
+                    disabled={loading || !storagePath}
+                    startIcon={loading ? <CircularProgress size={20} /> : <SaveIcon />}
+                    sx={{ height: 56, borderRadius: "12px", px: 3, borderColor: "#111827", color: "#111827" }}
+                  >
+                    Sincronizar Índice
+                  </Button>
+                </Box>
               </Paper>
 
               <Box sx={{ display: "flex", justifyContent: "flex-end" }}>

@@ -65,9 +65,11 @@ version = "0.1.0"
 dependencies = [
  "image",
  "img_hash",
+ "rayon",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
