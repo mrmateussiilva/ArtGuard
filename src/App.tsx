@@ -184,12 +184,13 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
             }
           });
 
-          const itemPath = pedido.items && pedido.items[0]?.imagem ? pedido.items[0].imagem : "";
-          const fullImageUrl = getImageUrl(itemPath, apiUrl);
+          const imageUrls = (pedido.items || [])
+            .filter(item => item.imagem)
+            .map(item => getImageUrl(item.imagem, apiUrl));
 
           await invoke("validate_order", {
             orderId: pedido.id,
-            imageUrl: fullImageUrl,
+            imageUrls: imageUrls,
             storagePath,
             thresholdApproved: thresholdApproved,
             thresholdAttention: thresholdAttention

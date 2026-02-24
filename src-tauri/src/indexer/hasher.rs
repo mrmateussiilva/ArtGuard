@@ -29,7 +29,7 @@ pub fn generate_hashes_from_memory(bytes: &[u8]) -> Result<(Hashes, u32, u32), S
     // 2. Normalize and generate pHash
     let normalized = normalize_image(img);
     let phash_generator = HasherConfig::new()
-        .hash_alg(HashAlg::Mean)
+        .hash_alg(HashAlg::Gradient) // Gradient is more robust than Mean
         .hash_size(8, 8)
         .to_hasher();
     
