@@ -1,6 +1,11 @@
 import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Toaster, toast } from 'sonner';
 import { listen } from "@tauri-apps/api/event";
+import InfoIcon from '@mui/icons-material/Info';
+import ReportProblemIcon from '@mui/icons-material/ReportProblem';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import {
   Typography,
   TextField,
@@ -21,6 +26,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   IconButton,
   List,
   ListItem,
@@ -101,6 +107,55 @@ const STAGES_CONFIG = [
   { id: "scoring", label: "Calculando score", icon: <AnalyticsIcon fontSize="small" /> },
   { id: "finalizing", label: "Finalizando", icon: <DoneAllIcon fontSize="small" /> },
 ];
+
+interface InformationalDialogProps {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  type?: 'success' | 'info' | 'warning' | 'error';
+}
+
+function InformationalDialog({ open, onClose, title, message, type = 'info' }: InformationalDialogProps) {
+  const getIcon = () => {
+    switch (type) {
+      case 'success': return <CheckCircleOutlineIcon sx={{ fontSize: 48, color: "#16A34A" }} />;
+      case 'warning': return <ReportProblemIcon sx={{ fontSize: 48, color: "#D97706" }} />;
+      case 'error': return <ErrorOutlineIcon sx={{ fontSize: 48, color: "#DC2626" }} />;
+      default: return <InfoIcon sx={{ fontSize: 48, color: "#3182CE" }} />;
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth PaperProps={{ sx: { borderRadius: "16px", p: 1 } }}>
+      <DialogTitle sx={{ textAlign: "center", pt: 4, pb: 2 }}>
+        {getIcon()}
+        <Typography variant="h6" sx={{ mt: 2, fontWeight: 800, color: "#1E293B" }}>
+          {title}
+        </Typography>
+      </DialogTitle>
+      <DialogContent sx={{ textAlign: "center", px: 4 }}>
+        <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 500, lineHeight: 1.6 }}>
+          {message}
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: "center", pb: 4, pt: 2 }}>
+        <Button
+          variant="contained"
+          onClick={onClose}
+          sx={{
+            bgcolor: "#1E293B",
+            px: 4,
+            borderRadius: "10px",
+            '&:hover': { bgcolor: "#334155" }
+          }}
+        >
+          Entendido
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, thresholdApproved, thresholdAttention }: ValidationModalProps) {
   const [phases, setPhases] = useState<ValidationPhase[]>(
@@ -325,6 +380,18 @@ function App() {
 
   const theme = useMemo(() => CreateAppTheme(), []);
 
+  // Notification state
+  const [infoModal, setInfoModal] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'info' | 'warning' | 'error' }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
+
+  const showInfoModal = (title: string, message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+    setInfoModal({ open: true, title, message, type });
+  };
+
   // Load Config on Mount
   useEffect(() => {
     const loadConfig = async () => {
@@ -360,10 +427,9 @@ function App() {
         }
       };
       await invoke("save_config", { config });
-      // We could use a toast here if sonner was available, but let's just use a console log for now or state
-      alert("Configurações salvas com sucesso!");
+      toast.success("Configurações salvas com sucesso!");
     } catch (err: any) {
-      alert("Erro ao salvar: " + err.toString());
+      toast.error("Erro ao salvar: " + err.toString());
     } finally {
       setLoading(false);
     }
@@ -394,11 +460,11 @@ function App() {
     if (!storagePath) return;
     try {
       setLoading(true);
-      const result = await invoke("index_storage", { storagePath });
-      alert(result);
+      const result = await invoke<string>("index_storage", { storagePath });
+      showInfoModal("Sincronização Concluída", result, "success");
     } catch (err) {
       console.error("Index error:", err);
-      alert("Falha ao indexar: " + err);
+      toast.error("Falha ao indexar: " + err);
     } finally {
       setLoading(false);
     }
@@ -870,6 +936,14 @@ function App() {
         thresholdApproved={thresholdApproved}
         thresholdAttention={thresholdAttention}
       />
+      <InformationalDialog
+        open={infoModal.open}
+        onClose={() => setInfoModal(prev => ({ ...prev, open: false }))}
+        title={infoModal.title}
+        message={infoModal.message}
+        type={infoModal.type}
+      />
+      <Toaster position="top-right" richColors />
     </ThemeProvider>
   );
 }
