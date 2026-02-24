@@ -88,6 +88,7 @@ interface ValidationModalProps {
   pedido: Pedido | null;
   storagePath: string;
   apiUrl: string;
+  threshold: number;
 }
 
 const STAGES_CONFIG = [
@@ -100,29 +101,33 @@ const STAGES_CONFIG = [
   { id: "finalizing", label: "Finalizando", icon: <DoneAllIcon fontSize="small" /> },
 ];
 
-function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: ValidationModalProps) {
+function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold }: ValidationModalProps) {
   const [phases, setPhases] = useState<ValidationPhase[]>(
     STAGES_CONFIG.map(s => ({ ...s, status: "pending" }))
   );
   const [result, setResult] = useState<{ score: number; status: string } | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && pedido) {
       setPhases(STAGES_CONFIG.map(s => ({ ...s, status: "pending" })));
       setResult(null);
+      setLocalError(null);
 
-      const startValidation = async () => {
-        const unlisten = await listen<any>("validation-stage", (event) => {
-          const { stage, status, data } = event.payload;
-          setPhases(prev =>
-            prev.map(p => (p.id === stage ? { ...p, status } : p))
-          );
-          if (stage === "finalizing" && status === "success" && data) {
-            setResult(data);
-          }
-        });
+      let unlistenFn: (() => void) | null = null;
 
+      const run = async () => {
         try {
+          unlistenFn = await listen<any>("validation-stage", (event) => {
+            const { stage, status, data } = event.payload;
+            setPhases(prev =>
+              prev.map(p => (p.id === stage ? { ...p, status } : p))
+            );
+            if (stage === "finalizing" && status === "success" && data) {
+              setResult(data);
+            }
+          });
+
           const itemPath = pedido.items && pedido.items[0]?.imagem ? pedido.items[0].imagem : "";
           const fullImageUrl = getImageUrl(itemPath, apiUrl);
 
@@ -130,20 +135,22 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
             orderId: pedido.id,
             imageUrl: fullImageUrl,
             storagePath,
-            threshold: 16
+            threshold: threshold // use the state value
           });
-        } catch (err) {
+        } catch (err: any) {
           console.error("Validation error:", err);
+          setLocalError(err.toString());
+          // Mark any remains as error
+          setPhases(prev =>
+            prev.map(p => (p.status === "running" || p.status === "pending" ? (p.id === "downloading" ? { ...p, status: "error" } : p) : p))
+          );
         }
-
-        return () => {
-          unlisten();
-        };
       };
 
-      const cleanupPromise = startValidation();
+      run();
+
       return () => {
-        cleanupPromise.then(unlisten => unlisten && unlisten());
+        if (unlistenFn) unlistenFn();
       };
     }
   }, [open, pedido, storagePath, apiUrl]);
@@ -232,6 +239,12 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
             ))}
           </Box>
 
+          {localError && (
+            <Alert severity="error" sx={{ mt: 2, borderRadius: "12px" }}>
+              {localError}
+            </Alert>
+          )}
+
           {result && (
             <FadeIn>
               <Paper elevation={0} sx={{
@@ -285,6 +298,7 @@ function App() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [threshold, setThreshold] = useState(85); // 85% as default
 
   const [validationOpen, setValidationOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
@@ -689,12 +703,25 @@ function App() {
                   </Grid>
                   <Grid size={{ xs: 12 }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Score de Aprovação (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      variant="outlined"
+                      value={threshold}
+                      onChange={(e) => setThreshold(Number(e.target.value))}
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
                       Formatos aceitos
                     </Typography>
                     <TextField
                       fullWidth
                       variant="outlined"
-                      defaultValue="PNG, JPG, TIFF, PDF"
+                      defaultValue="PNG, JPG, TIFF, WEBP"
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>
@@ -763,6 +790,7 @@ function App() {
         pedido={selectedPedido}
         storagePath={storagePath}
         apiUrl={url}
+        threshold={threshold}
       />
     </ThemeProvider>
   );
