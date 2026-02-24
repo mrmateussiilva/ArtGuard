@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
-  Container,
   Typography,
   TextField,
   Button,
@@ -23,6 +22,11 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import { open } from "@tauri-apps/plugin-dialog";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -36,6 +40,11 @@ import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows";
 import AnalyticsIcon from "@mui/icons-material/Analytics";
 import DoneAllIcon from "@mui/icons-material/DoneAll";
+import AssignmentIcon from "@mui/icons-material/Assignment";
+import SettingsIcon from "@mui/icons-material/Settings";
+import ShieldIcon from "@mui/icons-material/Shield";
+import SaveIcon from "@mui/icons-material/Save";
+import LayersIcon from "@mui/icons-material/Layers";
 
 const getImageUrl = (path: string | undefined, apiUrl: string) => {
   if (!path) return "";
@@ -114,7 +123,6 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
         });
 
         try {
-          // Use first item's image for validation
           const itemPath = pedido.items && pedido.items[0]?.imagem ? pedido.items[0].imagem : "";
           const fullImageUrl = getImageUrl(itemPath, apiUrl);
 
@@ -122,7 +130,7 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
             orderId: pedido.id,
             imageUrl: fullImageUrl,
             storagePath,
-            threshold: 16 // Default threshold for perceptual hash (8x8 bits)
+            threshold: 16
           });
         } catch (err) {
           console.error("Validation error:", err);
@@ -138,7 +146,7 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
         cleanupPromise.then(unlisten => unlisten && unlisten());
       };
     }
-  }, [open, pedido, storagePath]);
+  }, [open, pedido, storagePath, apiUrl]);
 
   const getStatusIcon = (status: StageStatus) => {
     switch (status) {
@@ -176,7 +184,6 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
       <DialogContent sx={{ p: 0 }}>
         <Box sx={{ px: 4, py: 3 }}>
           <Box sx={{ position: "relative" }}>
-            {/* Progress line indicator */}
             <Box sx={{
               position: "absolute",
               left: 10,
@@ -257,7 +264,6 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl }: Validat
   );
 }
 
-// Simple helper for fade in effect
 function FadeIn({ children }: { children: React.ReactNode }) {
   return (
     <Box sx={{
@@ -273,13 +279,13 @@ function FadeIn({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  const [currentTab, setCurrentTab] = useState<"pedidos" | "configuracoes">("pedidos");
   const [url, setUrl] = useState("http://localhost:8000/pedidos/");
   const [storagePath, setStoragePath] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Validation Modal State
   const [validationOpen, setValidationOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
 
@@ -337,286 +343,397 @@ function App() {
 
   const getStatusChip = (status: string | undefined) => {
     const s = status?.toLowerCase() || "";
-    if (s.includes("aprovado") || s.includes("concluido")) {
-      return <Chip label={status} size="small" sx={{ bgcolor: "#F0FDF4", color: "#166534", fontWeight: 600, borderRadius: "6px" }} />;
-    }
-    if (s.includes("pendente") || s.includes("atencao")) {
-      return <Chip label={status} size="small" sx={{ bgcolor: "#FFFBEB", color: "#92400E", fontWeight: 600, borderRadius: "6px" }} />;
-    }
-    if (s.includes("erro") || s.includes("atrasado")) {
-      return <Chip label={status} size="small" sx={{ bgcolor: "#FEF2F2", color: "#991B1B", fontWeight: 600, borderRadius: "6px" }} />;
-    }
-    return <Chip label={status || "N/A"} size="small" sx={{ bgcolor: "#F1F5F9", color: "#475569", fontWeight: 600, borderRadius: "6px" }} />;
+    const isApproved = s.includes("aprovado") || s.includes("concluido") || s.includes("validado");
+    const isPending = s.includes("pendente") || s.includes("atencao");
+
+    return (
+      <Chip
+        label={status || "N/A"}
+        size="small"
+        sx={{
+          bgcolor: isApproved ? "#F0FDF4" : isPending ? "#FFFBEB" : "#FEF2F2",
+          color: isApproved ? "#166534" : isPending ? "#92400E" : "#991B1B",
+          fontWeight: 600,
+          borderRadius: "16px",
+          px: 1
+        }}
+      />
+    );
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg" sx={{ py: 6 }}>
-        {/* Header Section */}
-        <Box sx={{ mb: 6 }}>
-          <Typography
-            variant="h4"
-            component="h1"
-            sx={{
-              fontWeight: 800,
-              letterSpacing: "0.05em",
-              color: "#0F172A",
-              fontSize: "1.75rem"
-            }}
-          >
-            ENGINE DE VALIDAÇÃO
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            sx={{ color: "#64748B", fontWeight: 500 }}
-          >
-            Controle técnico automatizado
-          </Typography>
-        </Box>
+      <Box sx={{ display: "flex", height: "100vh", bgcolor: "#F1F5F9" }}>
+        {/* Sidebar */}
+        <Box sx={{
+          width: 260,
+          bgcolor: "#111827",
+          color: "white",
+          display: "flex",
+          flexDirection: "column",
+          borderRight: "1px solid #1F2937"
+        }}>
+          <Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box sx={{
+              width: 32,
+              height: 32,
+              bgcolor: "#3B82F6",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}>
+              <ShieldIcon sx={{ fontSize: 20, color: "white" }} />
+            </Box>
+            <Box>
+              <Typography variant="subtitle2" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                ENGINE DE VALIDAÇÃO
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#9CA3AF", fontSize: "0.65rem" }}>
+                Controle técnico
+              </Typography>
+            </Box>
+          </Box>
 
-        {/* Configuration Card */}
-        <Box sx={{ mb: 2 }}>
-          <Typography
-            variant="overline"
-            sx={{ fontWeight: 700, color: "#64748B", ml: 1, mb: 1, display: "block" }}
-          >
-            Fonte de Dados
-          </Typography>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 4,
-              borderRadius: "12px",
-              border: "1px solid #E2E8F0",
-              boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
-            }}
-          >
-            <Grid container spacing={3}>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="URL da API de Pedidos"
-                  variant="outlined"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  placeholder="http://localhost:8000/pedidos/"
-                  sx={{ bgcolor: "white" }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  fullWidth
-                  label="Pasta de Armazenamento"
-                  variant="outlined"
-                  value={storagePath}
-                  sx={{ bgcolor: "white" }}
-                  slotProps={{
-                    input: {
-                      readOnly: true,
-                      endAdornment: (
-                        <Button
-                          variant="text"
-                          onClick={selecionarPasta}
-                          startIcon={<FolderOpenIcon />}
-                          sx={{
-                            ml: 1,
-                            whiteSpace: "nowrap",
-                            color: "#64748B",
-                            fontWeight: 600,
-                            '&:hover': { bgcolor: '#F8FAFC' }
-                          }}
-                        >
-                          Alterar
-                        </Button>
-                      )
-                    }
+          <List sx={{ mt: 2, px: 2 }}>
+            <ListItem disablePadding sx={{ mb: 1 }}>
+              <ListItemButton
+                onClick={() => setCurrentTab("pedidos")}
+                selected={currentTab === "pedidos"}
+                sx={{
+                  borderRadius: "8px",
+                  py: 1.5,
+                  '&.Mui-selected': {
+                    bgcolor: "#1F2937",
+                    '&:hover': { bgcolor: "#1F2937" }
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: currentTab === "pedidos" ? "#3B82F6" : "#9CA3AF" }}>
+                  <AssignmentIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Pedidos"
+                  primaryTypographyProps={{
+                    sx: { fontWeight: 600, fontSize: "0.9rem", color: currentTab === "pedidos" ? "white" : "#9CA3AF" }
                   }}
                 />
-              </Grid>
-              <Grid size={{ xs: 12 }} sx={{ display: "flex", justifyContent: "flex-end" }}>
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={() => setCurrentTab("configuracoes")}
+                selected={currentTab === "configuracoes"}
+                sx={{
+                  borderRadius: "8px",
+                  py: 1.5,
+                  '&.Mui-selected': {
+                    bgcolor: "#1F2937",
+                    '&:hover': { bgcolor: "#1F2937" }
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40, color: currentTab === "configuracoes" ? "#3B82F6" : "#9CA3AF" }}>
+                  <SettingsIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText
+                  primary="Configurações"
+                  primaryTypographyProps={{
+                    sx: { fontWeight: 600, fontSize: "0.9rem", color: currentTab === "configuracoes" ? "white" : "#9CA3AF" }
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Box>
+
+        {/* Main Content */}
+        <Box sx={{ flexGrow: 1, overflowY: "auto", p: 6 }}>
+          {currentTab === "pedidos" ? (
+            <Box>
+              <Box sx={{ mb: 6, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 800, color: "#111827", fontSize: "1.875rem" }}>
+                    Pedidos
+                  </Typography>
+                  <Typography variant="subtitle1" sx={{ color: "#6B7280", fontWeight: 500 }}>
+                    Gerencie e valide as imagens dos pedidos de produção
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: "#9CA3AF", mt: 2, display: "block" }}>
+                    {pedidos.length} pedidos encontrados
+                  </Typography>
+                </Box>
                 <Button
                   variant="contained"
                   disableElevation
+                  startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
                   onClick={handleBuscar}
                   disabled={loading}
                   sx={{
-                    px: 6,
-                    py: 1.5,
+                    px: 3,
+                    py: 1,
                     borderRadius: "8px",
                     textTransform: "none",
                     fontWeight: 700,
-                    fontSize: "1rem",
-                    bgcolor: "#0F172A",
-                    '&:hover': { bgcolor: '#1E293B' }
+                    bgcolor: "#2563EB",
+                    '&:hover': { bgcolor: '#1D4ED8' }
                   }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : "Sincronizar Pedidos"}
+                  Sincronizar Pedidos
                 </Button>
-              </Grid>
-            </Grid>
-          </Paper>
-        </Box>
+              </Box>
 
-        {/* Orders Section */}
-        <Box sx={{ mt: 6 }}>
-          {error && (
-            <Alert
-              severity="error"
-              sx={{ mb: 4, borderRadius: "12px", border: "1px solid #FEE2E2" }}
-            >
-              {error}
-            </Alert>
-          )}
+              {error && (
+                <Alert severity="error" sx={{ mb: 4, borderRadius: "12px" }}>
+                  {error}
+                </Alert>
+              )}
 
-          {!loading && !error && pedidos.length > 0 && (
-            <Box>
-              {pedidos.map((pedido, index) => (
-                <Accordion
-                  key={pedido.id || index}
-                  elevation={0}
-                  sx={{
-                    mb: 2,
-                    borderRadius: "12px !important",
-                    border: "1px solid #E2E8F0",
-                    '&:before': { display: 'none' },
-                    transition: "all 0.2s ease",
-                    cursor: "pointer",
-                    '&:hover': {
-                      boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
-                      borderColor: "#CBD5E1",
-                      '& .validate-btn': { opacity: 1 }
-                    }
-                  }}
-                  onClick={() => handleValidarPedido(pedido)}
-                >
-                  <AccordionSummary
-                    component="div"
-                    expandIcon={<ExpandMoreIcon sx={{ color: "#94A3B8" }} />}
-                    onClick={(e) => e.stopPropagation()}
+              <Box>
+                {pedidos.map((pedido, index) => (
+                  <Accordion
+                    key={pedido.id || index}
+                    elevation={0}
+                    sx={{
+                      mb: 2,
+                      borderRadius: "12px !important",
+                      border: "1px solid #E5E7EB",
+                      '&:before': { display: 'none' },
+                      transition: "all 0.2s ease",
+                      cursor: "pointer",
+                      '&:hover': {
+                        boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
+                        borderColor: "#D1D5DB",
+                        '& .validate-btn': { opacity: 1 }
+                      }
+                    }}
+                    onClick={() => handleValidarPedido(pedido)}
                   >
-                    <Box sx={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
-                      <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontFamily: "monospace",
-                            bgcolor: "#F8FAFC",
-                            px: 1,
-                            py: 0.5,
-                            borderRadius: "4px",
-                            color: "#475569",
-                            fontWeight: 600
-                          }}
-                        >
-                          #{pedido.numero || pedido.id}
-                        </Typography>
-                        <Box>
-                          <Typography variant="body1" sx={{ fontWeight: 700, color: "#1E293B" }}>
-                            {pedido.cliente || "Consumidor Final"}
+                    <AccordionSummary
+                      component="div"
+                      expandIcon={<ExpandMoreIcon sx={{ color: "#9CA3AF" }} />}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Box sx={{ display: "flex", width: "100%", justifyContent: "space-between", alignItems: "center", pr: 2 }}>
+                        <Box sx={{ display: "flex", gap: 3, alignItems: "center" }}>
+                          <Typography variant="body2" sx={{ fontFamily: "monospace", color: "#6B7280", letterSpacing: 1 }}>
+                            #{String(pedido.numero || pedido.id).padStart(10, '0')}
                           </Typography>
-                          <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 500 }}>
-                            Entrega: {formatarData(pedido.data_entrega)}
-                          </Typography>
+                          <Box>
+                            <Typography variant="body1" sx={{ fontWeight: 700, color: "#111827" }}>
+                              {pedido.cliente || "Consumidor Final"}
+                            </Typography>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <RadioButtonUncheckedIcon sx={{ fontSize: 14, color: "#9CA3AF" }} />
+                              <Typography variant="caption" sx={{ color: "#6B7280", fontWeight: 500 }}>
+                                Entrega: {formatarData(pedido.data_entrega)}
+                              </Typography>
+                            </Box>
+                          </Box>
                         </Box>
-                      </Box>
-                      <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          disableElevation
-                          className="validate-btn"
-                          sx={{
-                            opacity: 0,
-                            transition: "opacity 0.2s",
-                            bgcolor: "#0F172A",
-                            borderRadius: "6px",
-                            textTransform: "none",
-                            py: 0.5
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleValidarPedido(pedido);
-                          }}
-                        >
-                          Validar
-                        </Button>
-                        {getStatusChip(pedido.status)}
-                        <Chip
-                          label={`${pedido.items?.length || 0} itens`}
-                          variant="outlined"
-                          size="small"
-                          sx={{ border: "1px solid #E2E8F0", color: "#64748B", fontWeight: 600, borderRadius: "6px" }}
-                        />
-                      </Box>
-                    </Box>
-                  </AccordionSummary>
-                  <AccordionDetails sx={{ pt: 0, px: 3, pb: 3 }}>
-                    <Divider sx={{ mb: 3, borderColor: "#F1F5F9" }} />
-                    <Typography variant="overline" sx={{ fontWeight: 700, color: "#94A3B8", mb: 2, display: "block" }}>
-                      Detalhamento da Produção
-                    </Typography>
-                    <Grid container spacing={2}>
-                      {pedido.items?.map((item, i) => (
-                        <Grid size={{ xs: 12, md: 6 }} key={i}>
-                          <Paper
+                        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+                          <Button
+                            size="small"
                             variant="outlined"
+                            className="validate-btn"
                             sx={{
-                              p: 2,
-                              display: "flex",
-                              gap: 2,
-                              alignItems: "center",
-                              borderRadius: "10px",
-                              bgcolor: "#F8FAFC",
-                              borderColor: "#E2E8F0"
+                              opacity: 0,
+                              transition: "opacity 0.2s",
+                              borderRadius: "6px",
+                              textTransform: "none",
+                              borderColor: "#E5E7EB",
+                              color: "#4B5563"
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleValidarPedido(pedido);
                             }}
                           >
-                            <Box
-                              component="img"
-                              src={getImageUrl(item.imagem, url)}
+                            Validar
+                          </Button>
+                          {getStatusChip(pedido.status)}
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "#6B7280" }}>
+                            <LayersIcon sx={{ fontSize: 16 }} />
+                            <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                              {pedido.items?.length || 0} itens
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </AccordionSummary>
+                    <AccordionDetails sx={{ pt: 0, px: 3, pb: 3 }}>
+                      <Divider sx={{ mb: 3, borderColor: "#F3F4F6" }} />
+                      <Grid container spacing={2}>
+                        {pedido.items?.map((item, i) => (
+                          <Grid size={{ xs: 12, md: 6 }} key={i}>
+                            <Paper
+                              variant="outlined"
                               sx={{
-                                width: 80,
-                                height: 80,
-                                objectFit: "cover",
-                                borderRadius: "8px",
-                                border: "1px solid #E2E8F0",
-                                bgcolor: "white"
+                                p: 2,
+                                display: "flex",
+                                gap: 2,
+                                alignItems: "center",
+                                borderRadius: "10px",
+                                bgcolor: "#F9FAFB",
+                                borderColor: "#E5E7EB"
                               }}
-                              alt={item.descricao || "Item"}
-                              onError={(e: any) => { e.target.src = "https://placehold.co/80x80?text=Indisponível"; }}
-                            />
-                            <Box sx={{ flexGrow: 1 }}>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#0F172A", lineHeight: 1.2 }}>
-                                {item.tipo_producao || "Produção Padrão"}
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: "block", color: "#64748B", mt: 0.5, fontWeight: 500 }}>
-                                {item.tecido || "Material não especificado"}
-                              </Typography>
-                              <Box sx={{ mt: 1, display: "flex", alignItems: "center", gap: 1 }}>
-                                <Typography sx={{ fontSize: "0.75rem", fontWeight: 700, color: "#475569" }}>
-                                  {item.largura} x {item.altura}cm
+                            >
+                              <Box
+                                component="img"
+                                src={getImageUrl(item.imagem, url)}
+                                sx={{
+                                  width: 60,
+                                  height: 60,
+                                  objectFit: "cover",
+                                  borderRadius: "8px",
+                                  border: "1px solid #E5E7EB"
+                                }}
+                                alt={item.descricao || "Item"}
+                                onError={(e: any) => { e.target.src = "https://placehold.co/80x80?text=Indisponível"; }}
+                              />
+                              <Box sx={{ flexGrow: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#111827" }}>
+                                  {item.tipo_producao || "Item Standard"}
+                                </Typography>
+                                <Typography variant="caption" sx={{ display: "block", color: "#6B7280" }}>
+                                  {item.largura} x {item.altura}cm • {item.tecido}
                                 </Typography>
                               </Box>
-                            </Box>
-                          </Paper>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  </AccordionDetails>
-                </Accordion>
-              ))}
-            </Box>
-          )}
+                            </Paper>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </AccordionDetails>
+                  </Accordion>
+                ))}
+              </Box>
 
-          {!loading && !error && pedidos.length === 0 && (
-            <Box sx={{ textAlign: "center", py: 10 }}>
-              <Typography variant="body1" color="text.secondary" sx={{ fontWeight: 500 }}>
-                Aguardando sincronização de dados...
-              </Typography>
+              {pedidos.length === 0 && !loading && (
+                <Box sx={{ textAlign: "center", py: 10 }}>
+                  <Typography variant="body1" sx={{ color: "#9CA3AF", fontWeight: 500 }}>
+                    Aguardando sincronização de dados...
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box maxWidth="md">
+              <Box sx={{ mb: 6 }}>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: "#111827", fontSize: "1.875rem" }}>
+                  Configurações
+                </Typography>
+                <Typography variant="subtitle1" sx={{ color: "#6B7280", fontWeight: 500 }}>
+                  Configure as fontes de dados e parâmetros do sistema
+                </Typography>
+              </Box>
+
+              <Paper elevation={0} sx={{ p: 4, borderRadius: "16px", border: "1px solid #E5E7EB", mb: 4 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, fontSize: "1rem" }}>
+                  Fonte de Dados
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#6B7280", mb: 4 }}>
+                  Configure a URL da API e o caminho de armazenamento das imagens
+                </Typography>
+
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      URL da API de Pedidos
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Pasta de Armazenamento
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        value={storagePath}
+                        slotProps={{ input: { readOnly: true } }}
+                        sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                      />
+                      <IconButton
+                        onClick={selecionarPasta}
+                        sx={{
+                          bgcolor: "#F3F4F6",
+                          borderRadius: "8px",
+                          border: "1px solid #E5E7EB"
+                        }}
+                      >
+                        <FolderOpenIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              <Paper elevation={0} sx={{ p: 4, borderRadius: "16px", border: "1px solid #E5E7EB", mb: 6 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, fontSize: "1rem" }}>
+                  Validação
+                </Typography>
+                <Typography variant="body2" sx={{ color: "#6B7280", mb: 4 }}>
+                  Parâmetros de validação das imagens dos pedidos
+                </Typography>
+
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Resolução mínima (DPI)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      variant="outlined"
+                      defaultValue={150}
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Formatos aceitos
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      variant="outlined"
+                      defaultValue="PNG, JPG, TIFF, PDF"
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                <Button
+                  variant="contained"
+                  disableElevation
+                  startIcon={<SaveIcon />}
+                  sx={{
+                    px: 4,
+                    py: 1.25,
+                    borderRadius: "8px",
+                    textTransform: "none",
+                    fontWeight: 700,
+                    bgcolor: "#2563EB",
+                    '&:hover': { bgcolor: '#1D4ED8' }
+                  }}
+                >
+                  Salvar Configurações
+                </Button>
+              </Box>
             </Box>
           )}
         </Box>
-      </Container>
+      </Box>
+
       <ValidationModal
         open={validationOpen}
         onClose={() => setValidationOpen(false)}
@@ -631,50 +748,48 @@ function App() {
 function CreateAppTheme() {
   return createTheme({
     typography: {
-      fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-      h4: {
-        fontFamily: '"Inter", sans-serif',
-      },
-      button: {
-        textTransform: 'none',
-      }
+      fontFamily: '"Inter", "system-ui", "-apple-system", sans-serif',
+      h4: { fontWeight: 800 },
+      subtitle1: { lineHeight: 1.5 }
     },
     palette: {
-      background: {
-        default: "#F1F5F9",
-      },
-      primary: {
-        main: "#0F172A",
-      },
+      primary: { main: "#2563EB" },
+      background: { default: "#F1F5F9" }
     },
     components: {
       MuiCssBaseline: {
         styleOverrides: {
           body: {
             backgroundColor: "#F1F5F9",
+            margin: 0
           }
         }
       },
       MuiPaper: {
         styleOverrides: {
+          root: { backgroundImage: 'none' }
+        }
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
           root: {
-            backgroundImage: 'none',
+            borderRadius: "8px",
+            fontSize: "0.95rem",
+            '& fieldset': { borderColor: '#E5E7EB' },
+            '&:hover fieldset': { borderColor: '#D1D5DB' },
+            '&.Mui-focused fieldset': { borderColor: '#3B82F6', borderWidth: '1px' },
           }
         }
       },
-      MuiTextField: {
+      MuiButton: {
         styleOverrides: {
           root: {
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '8px',
-              backgroundColor: 'white',
-              '& fieldset': {
-                borderColor: '#E2E8F0',
-              },
-              '&:hover fieldset': {
-                borderColor: '#CBD5E1',
-              },
-            },
+            textTransform: 'none',
+            borderRadius: "8px"
+          },
+          contained: {
+            boxShadow: 'none',
+            '&:hover': { boxShadow: 'none' }
           }
         }
       }
