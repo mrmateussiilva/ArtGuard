@@ -2,10 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Pedido {
-    pub id: u32,
-    pub cliente: String,
-    pub valor: f64,
-    pub status: String,
+    pub id: Option<u32>,
+    pub cliente: Option<String>,
+    pub valor: Option<f64>,
+    pub status: Option<String>,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/

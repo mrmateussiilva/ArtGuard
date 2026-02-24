@@ -16,14 +16,14 @@ import {
 } from "@mui/material";
 
 interface Pedido {
-  id: number;
-  cliente: String;
-  valor: number;
-  status: String;
+  id?: number;
+  cliente?: string;
+  valor?: number;
+  status?: string;
 }
 
 function App() {
-  const [url, setUrl] = useState("https://run.mocky.io/v3/8f747683-9b88-4696-b695-17793540248c"); // URL de exemplo
+  const [url, setUrl] = useState("http://localhost:8000/pedidos/");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +33,10 @@ function App() {
     setError(null);
     try {
       const response = await invoke<Pedido[]>("buscar_pedidos", { url });
+      console.log("Pedidos recebidos:", response);
       setPedidos(response);
     } catch (err: any) {
-      console.error(err);
+      console.error("Erro ao buscar pedidos:", err);
       setError(err.toString());
     } finally {
       setLoading(false);
@@ -86,11 +87,11 @@ function App() {
           <Paper elevation={2}>
             <List>
               {pedidos.map((pedido, index) => (
-                <Box key={pedido.id}>
+                <Box key={pedido.id || index}>
                   <ListItem>
                     <ListItemText
-                      primary={`Pedido #${pedido.id} - ${pedido.cliente}`}
-                      secondary={`Valor: R$ ${pedido.valor.toFixed(2)} | Status: ${pedido.status}`}
+                      primary={`Pedido #${pedido.id || "N/A"} - ${pedido.cliente || "Sem Nome"}`}
+                      secondary={`Valor: R$ ${(pedido.valor || 0).toFixed(2)} | Status: ${pedido.status || "Desconhecido"}`}
                     />
                   </ListItem>
                   {index < pedidos.length - 1 && <Divider />}
