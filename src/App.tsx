@@ -250,20 +250,33 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
               <Paper elevation={0} sx={{
                 mt: 4,
                 p: 3,
-                bgcolor: result.status === "APROVADO" ? "#F0FDF4" : "#FEF2F2",
-                border: `1px solid ${result.status === "APROVADO" ? "#BBF7D0" : "#FECACA"}`,
+                bgcolor:
+                  result.status === "approved" ? "#F0FDF4" :
+                    result.status === "attention" ? "#FFFBEB" : "#FEF2F2",
+                border: `1px solid ${result.status === "approved" ? "#BBF7D0" :
+                    result.status === "attention" ? "#FEF3C7" : "#FECACA"
+                  }`,
                 borderRadius: "12px",
                 textAlign: "center"
               }}>
-                <Typography variant="overline" sx={{ fontWeight: 700, color: result.status === "APROVADO" ? "#166534" : "#991B1B" }}>
+                <Typography variant="overline" sx={{
+                  fontWeight: 700,
+                  color:
+                    result.status === "approved" ? "#166534" :
+                      result.status === "attention" ? "#92400E" : "#991B1B"
+                }}>
                   Resultado da Validação
                 </Typography>
                 <Typography variant="h4" sx={{
                   fontWeight: 900,
-                  color: result.status === "APROVADO" ? "#15803d" : "#b91c1c",
-                  my: 1
+                  color:
+                    result.status === "approved" ? "#15803d" :
+                      result.status === "attention" ? "#D97706" : "#b91c1c",
+                  my: 1,
+                  textTransform: "uppercase"
                 }}>
-                  {result.status}
+                  {result.status === "approved" ? "Aprovado" :
+                    result.status === "attention" ? "Atenção" : "Divergente"}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: "#475569" }}>
                   Score de Similaridade: {result.score.toFixed(1)}%

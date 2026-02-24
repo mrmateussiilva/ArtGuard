@@ -128,8 +128,15 @@ pub async fn validate_order(
     
     let result_data = match match_result {
         Some(res) => {
-            let status = if res.score >= threshold as f32 { "approved" } else { "divergent" };
-            println!("[ArtGuard] Match encontrado: {} (Score: {:.1}%)", res.metadata.name, res.score);
+            let status = if res.score >= 90.0 { 
+                "approved" 
+            } else if res.score >= 70.0 {
+                "attention"
+            } else { 
+                "divergent" 
+            };
+            
+            println!("[ArtGuard] Match encontrado: {} (Score: {:.1}%, Status: {})", res.metadata.name, res.score, status);
             serde_json::json!({
                 "status": status,
                 "score": res.score,
