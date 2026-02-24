@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
 pub fn scan_directory(path: &Path) -> Vec<PathBuf> {
-    let extensions = ["tiff", "tif", "png", "jpg", "jpeg"];
+    let extensions = ["tiff", "tif", "png", "jpg", "jpeg", "webp"];
     
     WalkDir::new(path)
         .into_iter()

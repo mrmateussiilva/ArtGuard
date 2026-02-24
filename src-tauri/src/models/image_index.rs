@@ -33,3 +33,9 @@ impl ImageIndex {
         }
     }
 }
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ComparisonResult {
+    pub score: f64,
+    pub status: String, // "approved" | "divergent"
+    pub matched_file: String,
+}
