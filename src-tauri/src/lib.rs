@@ -3,9 +3,15 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Pedido {
     pub id: Option<u32>,
+    pub numero: Option<String>,
     pub cliente: Option<String>,
-    pub valor: Option<f64>,
+    pub valor_total: Option<f64>,
     pub status: Option<String>,
+    pub data_entrada: Option<String>,
+    pub data_entrega: Option<String>,
+    pub vendedor: Option<String>,
+    pub designer: Option<String>,
+    pub itens: Option<serde_json::Value>, // Using Value for flexibility with nested items
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
