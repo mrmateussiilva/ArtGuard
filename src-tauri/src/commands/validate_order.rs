@@ -78,13 +78,20 @@ pub async fn validate_order(
     println!("[ArtGuard] Gerando hashes da referência...");
     emit_stage("normalizing", "running", None)?;
     emit_stage("hashing", "running", None)?;
-    let (target_hashes, _, _) = generate_hashes(&temp_path).map_err(|e| {
+    
+    let (target_hashes, _, _) = crate::indexer::hasher::generate_hashes_from_memory(&bytes).map_err(|e| {
         let _ = emit_stage("normalizing", "error", None);
         let _ = emit_stage("hashing", "error", None);
         format!("Erro no processamento da imagem: {}", e)
     })?;
+    
     emit_stage("normalizing", "success", None)?;
     emit_stage("hashing", "success", None)?;
+
+    // Log the temp file for reference (optional)
+    let temp_dir = std::env::temp_dir();
+    let temp_path = temp_dir.join(format!("artguard_ref_{}.bin", order_id));
+    let _ = std::fs::write(&temp_path, &bytes);
 
     // 3. Loading Index
     println!("[ArtGuard] Carregando índice local...");
