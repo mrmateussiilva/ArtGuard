@@ -1,5 +1,4 @@
 use crate::config::{self, AppConfig};
-use tauri::Manager;
 
 #[tauri::command]
 pub async fn get_config(app_handle: tauri::AppHandle) -> Result<AppConfig, String> {

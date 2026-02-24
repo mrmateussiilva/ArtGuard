@@ -1,5 +1,4 @@
 use crate::models::image_index::ImageIndex;
-use crate::indexer::hasher::generate_hashes;
 use crate::validator::matcher::find_match;
 use tauri::Emitter;
 use serde::Serialize;
