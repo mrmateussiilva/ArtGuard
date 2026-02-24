@@ -7,6 +7,7 @@ mod config;
 
 use commands::index_storage::index_storage;
 use commands::validate_order::validate_order;
+use commands::visual_validation::{get_index_images, compare_single_image, read_image_as_base64};
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 pub struct Pedido {
@@ -49,10 +50,14 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             buscar_pedidos, 
             index_storage,
             validate_order,
+            get_index_images,
+            compare_single_image,
+            read_image_as_base64,
             commands::config::get_config,
             commands::config::save_config
         ])
