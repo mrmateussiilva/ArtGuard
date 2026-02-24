@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tauri::Emitter;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Pedido {
@@ -59,12 +60,136 @@ async fn buscar_imagem_similar(
     Ok(result)
 }
 
+#[derive(Clone, Serialize)]
+struct ValidationPayload {
+    stage: String,
+    status: String,
+    data: Option<serde_json::Value>,
+}
+
+#[tauri::command]
+async fn validate_order(
+    window: tauri::Window, 
+    order_id: u32,
+    image_url: String,
+    storage_path: String,
+    threshold: u32
+) -> Result<(), String> {
+    let temp_dir = std::env::temp_dir();
+    let temp_path = temp_dir.join(format!("artguard_ref_{}.png", order_id));
+
+    // STAGE: Localizing
+    window.emit("validation-stage", ValidationPayload {
+        stage: "localizing".to_string(),
+        status: "running".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    let response = reqwest::get(&image_url)
+        .await
+        .map_err(|e| format!("Falha ao buscar imagem: {}", e))?;
+    
+    let bytes = response.bytes().await.map_err(|e| format!("Erro ao ler bytes: {}", e))?;
+    std::fs::write(&temp_path, &bytes).map_err(|e| format!("Erro ao salvar arquivo temp: {}", e))?;
+
+    window.emit("validation-stage", ValidationPayload {
+        stage: "localizing".to_string(),
+        status: "success".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // STAGE: Embedding
+    window.emit("validation-stage", ValidationPayload {
+        stage: "embedding".to_string(),
+        status: "running".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // Simulate some work for embedding (visual only)
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    window.emit("validation-stage", ValidationPayload {
+        stage: "embedding".to_string(),
+        status: "success".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // STAGE: Comparing
+    window.emit("validation-stage", ValidationPayload {
+        stage: "comparing".to_string(),
+        status: "running".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    let store_p = PathBuf::from(storage_path);
+    let ref_p = temp_path.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        find_most_similar(&ref_p, &store_p, threshold)
+    }).await.map_err(|e| format!("Erro na busca: {}", e))?;
+
+    window.emit("validation-stage", ValidationPayload {
+        stage: "comparing".to_string(),
+        status: "success".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // STAGE: Scoring
+    window.emit("validation-stage", ValidationPayload {
+        stage: "scoring".to_string(),
+        status: "running".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
+
+    window.emit("validation-stage", ValidationPayload {
+        stage: "scoring".to_string(),
+        status: "success".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // STAGE: Finalizing
+    window.emit("validation-stage", ValidationPayload {
+        stage: "finalizing".to_string(),
+        status: "running".to_string(),
+        data: None,
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    let (score, status) = match &result {
+        Some(res) => {
+            let s = if res.similarity_score >= 85.0 { "APROVADO" } else { "DIVERGENTE" };
+            (res.similarity_score, s)
+        },
+        None => (0.0, "DIVERGENTE")
+    };
+
+    window.emit("validation-stage", ValidationPayload {
+        stage: "finalizing".to_string(),
+        status: "success".to_string(),
+        data: Some(serde_json::json!({
+            "score": score,
+            "status": status,
+            "match": result.map(|r| r.file_path)
+        })),
+    }).map_err(|e: tauri::Error| e.to_string())?;
+
+    // Cleanup
+    let _ = std::fs::remove_file(temp_path);
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![buscar_pedidos, buscar_imagem_similar])
+        .invoke_handler(tauri::generate_handler![
+            buscar_pedidos, 
+            buscar_imagem_similar,
+            validate_order
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
