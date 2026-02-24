@@ -49,6 +49,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import ShieldIcon from "@mui/icons-material/Shield";
 import SaveIcon from "@mui/icons-material/Save";
 import LayersIcon from "@mui/icons-material/Layers";
+import { ValidationModal as AssistedValidationModal } from "./components/ValidationModal";
 
 const getImageUrl = (path: string | undefined, apiUrl: string) => {
   if (!path) return "";
@@ -377,7 +378,9 @@ function App() {
   const [acceptedFormats, setAcceptedFormats] = useState("PNG, JPG, TIFF, WEBP");
 
   const [validationOpen, setValidationOpen] = useState(false);
+  const [assistedValidationOpen, setAssistedValidationOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
+  const [selectedReferenceUrl, setSelectedReferenceUrl] = useState("");
 
   const theme = useMemo(() => CreateAppTheme(), []);
 
@@ -758,6 +761,27 @@ function App() {
                                 <Typography variant="caption" sx={{ display: "block", color: "#6B7280" }}>
                                   {item.largura} x {item.altura}cm • {item.tecido}
                                 </Typography>
+                                <Button
+                                  size="small"
+                                  variant="text"
+                                  startIcon={<AutoAwesomeIcon sx={{ fontSize: 14 }} />}
+                                  sx={{
+                                    mt: 1,
+                                    fontSize: "0.7rem",
+                                    fontWeight: 700,
+                                    textTransform: "none",
+                                    p: 0,
+                                    minWidth: 0,
+                                    color: "#2563EB"
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedReferenceUrl(getImageUrl(item.imagem, url));
+                                    setAssistedValidationOpen(true);
+                                  }}
+                                >
+                                  Validar Visualmente
+                                </Button>
                               </Box>
                             </Paper>
                           </Grid>
@@ -927,6 +951,13 @@ function App() {
           )}
         </Box>
       </Box>
+
+      <AssistedValidationModal
+        open={assistedValidationOpen}
+        onClose={() => setAssistedValidationOpen(false)}
+        referenceUrl={selectedReferenceUrl}
+        storagePath={storagePath}
+      />
 
       <ValidationModal
         open={validationOpen}
