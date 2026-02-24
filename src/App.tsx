@@ -88,7 +88,8 @@ interface ValidationModalProps {
   pedido: Pedido | null;
   storagePath: string;
   apiUrl: string;
-  threshold: number;
+  thresholdApproved: number;
+  thresholdAttention: number;
 }
 
 const STAGES_CONFIG = [
@@ -101,7 +102,7 @@ const STAGES_CONFIG = [
   { id: "finalizing", label: "Finalizando", icon: <DoneAllIcon fontSize="small" /> },
 ];
 
-function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold }: ValidationModalProps) {
+function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, thresholdApproved, thresholdAttention }: ValidationModalProps) {
   const [phases, setPhases] = useState<ValidationPhase[]>(
     STAGES_CONFIG.map(s => ({ ...s, status: "pending" }))
   );
@@ -135,7 +136,8 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
             orderId: pedido.id,
             imageUrl: fullImageUrl,
             storagePath,
-            threshold: threshold // use the state value
+            thresholdApproved: thresholdApproved,
+            thresholdAttention: thresholdAttention
           });
         } catch (err: any) {
           console.error("Validation error:", err);
@@ -254,7 +256,7 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
                   result.status === "approved" ? "#F0FDF4" :
                     result.status === "attention" ? "#FFFBEB" : "#FEF2F2",
                 border: `1px solid ${result.status === "approved" ? "#BBF7D0" :
-                    result.status === "attention" ? "#FEF3C7" : "#FECACA"
+                  result.status === "attention" ? "#FEF3C7" : "#FECACA"
                   }`,
                 borderRadius: "12px",
                 textAlign: "center"
@@ -311,12 +313,61 @@ function App() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [threshold, setThreshold] = useState(85); // 85% as default
+
+  // Validation Config States
+  const [thresholdApproved, setThresholdApproved] = useState(90);
+  const [thresholdAttention, setThresholdAttention] = useState(70);
+  const [minDpi, setMinDpi] = useState(150);
+  const [acceptedFormats, setAcceptedFormats] = useState("PNG, JPG, TIFF, WEBP");
 
   const [validationOpen, setValidationOpen] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<Pedido | null>(null);
 
   const theme = useMemo(() => CreateAppTheme(), []);
+
+  // Load Config on Mount
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const config = await invoke<any>("get_config");
+        setUrl(config.api_url);
+        setStoragePath(config.storage_path);
+        setThresholdApproved(config.validation.threshold_approved);
+        setThresholdAttention(config.validation.threshold_attention);
+        setMinDpi(config.validation.min_dpi);
+        setAcceptedFormats(config.validation.accepted_formats.join(", ").toUpperCase());
+      } catch (err) {
+        console.error("Erro ao carregar configurações:", err);
+      }
+    };
+    loadConfig();
+  }, []);
+
+  const handleSaveConfig = async () => {
+    setLoading(true);
+    try {
+      const config = {
+        api_url: url,
+        storage_path: storagePath,
+        validation: {
+          threshold_approved: thresholdApproved,
+          threshold_attention: thresholdAttention,
+          min_dpi: minDpi,
+          accepted_formats: acceptedFormats.split(",").map(s => s.trim().toLowerCase()).filter(s => s !== ""),
+          hash_algorithm: "Mean",
+          hash_size: 8,
+          normalize_size: 256
+        }
+      };
+      await invoke("save_config", { config });
+      // We could use a toast here if sonner was available, but let's just use a console log for now or state
+      alert("Configurações salvas com sucesso!");
+    } catch (err: any) {
+      alert("Erro ao salvar: " + err.toString());
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleValidarPedido = (pedido: Pedido) => {
     setSelectedPedido(pedido);
@@ -702,7 +753,7 @@ function App() {
                 </Typography>
 
                 <Grid container spacing={3}>
-                  <Grid size={{ xs: 12 }}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
                       Resolução mínima (DPI)
                     </Typography>
@@ -710,31 +761,46 @@ function App() {
                       fullWidth
                       type="number"
                       variant="outlined"
-                      defaultValue={150}
+                      value={minDpi}
+                      onChange={(e) => setMinDpi(Number(e.target.value))}
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12 }}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
-                      Score de Aprovação (%)
+                      Score de Aprovação (Verde %)
                     </Typography>
                     <TextField
                       fullWidth
                       type="number"
                       variant="outlined"
-                      value={threshold}
-                      onChange={(e) => setThreshold(Number(e.target.value))}
+                      value={thresholdApproved}
+                      onChange={(e) => setThresholdApproved(Number(e.target.value))}
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>
-                  <Grid size={{ xs: 12 }}>
+                  <Grid size={{ xs: 6 }}>
                     <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
-                      Formatos aceitos
+                      Score de Atenção (Laranja %)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      variant="outlined"
+                      value={thresholdAttention}
+                      onChange={(e) => setThresholdAttention(Number(e.target.value))}
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Formatos aceitos (separados por vírgula)
                     </Typography>
                     <TextField
                       fullWidth
                       variant="outlined"
-                      defaultValue="PNG, JPG, TIFF, WEBP"
+                      value={acceptedFormats}
+                      onChange={(e) => setAcceptedFormats(e.target.value)}
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>
@@ -774,22 +840,20 @@ function App() {
                 </Box>
               </Paper>
 
-              <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 4 }}>
                 <Button
                   variant="contained"
-                  disableElevation
-                  startIcon={<SaveIcon />}
+                  onClick={handleSaveConfig}
+                  disabled={loading}
                   sx={{
+                    bgcolor: "#1e293b",
                     px: 4,
-                    py: 1.25,
-                    borderRadius: "8px",
-                    textTransform: "none",
-                    fontWeight: 700,
-                    bgcolor: "#2563EB",
-                    '&:hover': { bgcolor: '#1D4ED8' }
+                    py: 1.5,
+                    borderRadius: "12px",
+                    fontWeight: 700
                   }}
                 >
-                  Salvar Configurações
+                  {loading ? "Salvando..." : "Salvar Configurações"}
                 </Button>
               </Box>
             </Box>
@@ -803,7 +867,8 @@ function App() {
         pedido={selectedPedido}
         storagePath={storagePath}
         apiUrl={url}
-        threshold={threshold}
+        thresholdApproved={thresholdApproved}
+        thresholdAttention={thresholdAttention}
       />
     </ThemeProvider>
   );

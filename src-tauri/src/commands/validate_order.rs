@@ -18,7 +18,8 @@ pub async fn validate_order(
     order_id: u32,
     image_url: String,
     storage_path: String,
-    threshold: u32,
+    threshold_approved: f32,
+    threshold_attention: f32,
 ) -> Result<(), String> {
     println!("[ArtGuard] Iniciando validação para Pedido #{}", order_id);
     println!("[ArtGuard] URL: {}", image_url);
@@ -128,9 +129,9 @@ pub async fn validate_order(
     
     let result_data = match match_result {
         Some(res) => {
-            let status = if res.score >= 90.0 { 
+            let status = if res.score >= threshold_approved { 
                 "approved" 
-            } else if res.score >= 70.0 {
+            } else if res.score >= threshold_attention {
                 "attention"
             } else { 
                 "divergent" 

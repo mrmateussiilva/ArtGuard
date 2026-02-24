@@ -3,6 +3,7 @@ mod utils;
 mod indexer;
 mod validator;
 mod commands;
+mod config;
 
 use commands::index_storage::index_storage;
 use commands::validate_order::validate_order;
@@ -51,7 +52,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             buscar_pedidos, 
             index_storage,
-            validate_order
+            validate_order,
+            commands::config::get_config,
+            commands::config::save_config
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
