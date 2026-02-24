@@ -13,8 +13,8 @@ pub struct SimilarImageResult {
 pub fn generate_hash(path: &Path) -> Result<ImageHash, String> {
     let img = image::open(path).map_err(|e| format!("Falha ao abrir imagem: {}", e))?;
     let hasher = HasherConfig::new()
-        .hash_alg(HashAlg::Gradient)
-        .hash_size(8, 8)
+        .hash_alg(HashAlg::Mean)
+        .hash_size(16, 16)
         .to_hasher();
     
     Ok(hasher.hash_image(&img))
@@ -27,18 +27,19 @@ pub fn compare_hashes(h1: &ImageHash, h2: &ImageHash) -> u32 {
 pub fn find_most_similar(
     reference_path: &Path, 
     storage_path: &Path, 
-    threshold: u32
+    _threshold: u32
 ) -> Option<SimilarImageResult> {
     let ref_hash = match generate_hash(reference_path) {
         Ok(hash) => hash,
         Err(e) => {
-            println!("Erro ao gerar hash da referência: {}", e);
+            println!("[ArtGuard] Erro ao gerar hash da referência: {}", e);
             return None;
         }
     };
+    println!("[ArtGuard] Hash da referência gerado: {:?}", reference_path);
 
     let mut best_match: Option<(PathBuf, u32)> = None;
-    let extensions = ["tif", "tiff", "png", "jpg", "jpeg"];
+    let extensions = ["tif", "tiff", "png", "jpg", "jpeg", "bmp", "webp"];
 
     for entry in WalkDir::new(storage_path).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
@@ -52,15 +53,15 @@ pub fn find_most_similar(
                 if extensions.contains(&ext.as_str()) {
                     if let Ok(current_hash) = generate_hash(path) {
                         let distance = compare_hashes(&ref_hash, &current_hash);
+                        println!("[ArtGuard] Comparando: {:?} -> distância: {}", path, distance);
                         
-                        if distance <= threshold {
-                            match best_match {
-                                None => best_match = Some((path.to_path_buf(), distance)),
-                                Some((_, best_dist)) if distance < best_dist => {
-                                    best_match = Some((path.to_path_buf(), distance));
-                                }
-                                _ => {}
+                        // Always track the best (closest) match
+                        match best_match {
+                            None => best_match = Some((path.to_path_buf(), distance)),
+                            Some((_, best_dist)) if distance < best_dist => {
+                                best_match = Some((path.to_path_buf(), distance));
                             }
+                            _ => {}
                         }
                     }
                 }
@@ -69,10 +70,10 @@ pub fn find_most_similar(
     }
 
     best_match.map(|(path, distance)| {
-        // Simple similarity score: (hash_bits - distance) / hash_bits
-        // Hash size is 8x8 = 64 bits
-        let bit_count = 64.0;
-        let score = (bit_count - distance as f32) / bit_count * 100.0;
+        // Hash size is 16x16 = 256 bits
+        let bit_count = 256.0;
+        let score = ((bit_count - distance as f32) / bit_count * 100.0).max(0.0);
+        println!("[ArtGuard] Melhor match: {:?}, distância: {}, score: {:.1}%", path, distance, score);
         
         SimilarImageResult {
             file_path: path,

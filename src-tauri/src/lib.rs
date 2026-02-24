@@ -75,8 +75,25 @@ async fn validate_order(
     storage_path: String,
     threshold: u32
 ) -> Result<(), String> {
+    // Detect extension from URL
+    let ext = image_url
+        .split('?').next().unwrap_or(&image_url)
+        .rsplit('.').next()
+        .and_then(|e| {
+            let lower = e.to_lowercase();
+            if ["png", "jpg", "jpeg", "tiff", "tif", "bmp", "webp"].contains(&lower.as_str()) {
+                Some(lower)
+            } else {
+                None
+            }
+        })
+        .unwrap_or_else(|| "png".to_string());
+
     let temp_dir = std::env::temp_dir();
-    let temp_path = temp_dir.join(format!("artguard_ref_{}.png", order_id));
+    let temp_path = temp_dir.join(format!("artguard_ref_{}.{}", order_id, ext));
+    println!("[ArtGuard] URL da imagem: {}", image_url);
+    println!("[ArtGuard] Temp path: {:?}", temp_path);
+    println!("[ArtGuard] Storage path: {}", storage_path);
 
     // STAGE: Localizing
     window.emit("validation-stage", ValidationPayload {
@@ -90,6 +107,7 @@ async fn validate_order(
         .map_err(|e| format!("Falha ao buscar imagem: {}", e))?;
     
     let bytes = response.bytes().await.map_err(|e| format!("Erro ao ler bytes: {}", e))?;
+    println!("[ArtGuard] Imagem baixada: {} bytes", bytes.len());
     std::fs::write(&temp_path, &bytes).map_err(|e| format!("Erro ao salvar arquivo temp: {}", e))?;
 
     window.emit("validation-stage", ValidationPayload {
