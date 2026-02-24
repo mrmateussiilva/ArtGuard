@@ -63,6 +63,7 @@ checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 name = "artguard"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "image",
  "img_hash",
  "rayon",
@@ -73,6 +74,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+ "tauri-plugin-fs",
  "tauri-plugin-opener",
  "tokio",
  "walkdir",
