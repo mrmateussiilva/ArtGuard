@@ -15,7 +15,9 @@ import {
   AccordionDetails,
   Grid,
 } from "@mui/material";
+import { open } from "@tauri-apps/plugin-dialog";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
 
 interface Item {
   tipo_producao?: string;
@@ -36,9 +38,26 @@ interface Pedido {
 
 function App() {
   const [url, setUrl] = useState("http://localhost:8000/pedidos/");
+  const [storagePath, setStoragePath] = useState("");
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selecionarPasta = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Selecionar Pasta de Armazenamento",
+      });
+      if (selected) {
+        setStoragePath(selected as string);
+      }
+    } catch (err: any) {
+      console.error("Erro ao selecionar pasta:", err);
+      setError("Erro ao abrir seletor de pastas: " + err.toString());
+    }
+  };
 
   // Helper to get image URL
   const getImageUrl = (path: string | undefined) => {
@@ -92,7 +111,7 @@ function App() {
       </Typography>
 
       <Paper elevation={3} sx={{ p: 3, mb: 4 }}>
-        <Box sx={{ display: "flex", gap: 2 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
           <TextField
             fullWidth
             label="URL da API de Pedidos"
@@ -109,6 +128,30 @@ function App() {
           >
             Buscar
           </Button>
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <TextField
+            fullWidth
+            label="Pasta de Armazenamento para Similaridade"
+            variant="outlined"
+            value={storagePath}
+            slotProps={{
+              input: {
+                readOnly: true,
+                endAdornment: (
+                  <Button
+                    variant="outlined"
+                    onClick={selecionarPasta}
+                    startIcon={<FolderOpenIcon />}
+                    sx={{ ml: 1, whiteSpace: "nowrap" }}
+                  >
+                    Selecionar Pasta
+                  </Button>
+                )
+              }
+            }}
+          />
         </Box>
       </Paper>
 
