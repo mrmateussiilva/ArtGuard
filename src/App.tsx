@@ -51,6 +51,21 @@ function App() {
     }
   };
 
+  const formatarData = (dataStr: string | undefined) => {
+    if (!dataStr) return "N/A";
+    try {
+      // Tenta tratar formatos ISO (YYYY-MM-DD) ou similares
+      const parts = dataStr.split("T")[0].split("-");
+      if (parts.length === 3) {
+        const [ano, mes, dia] = parts;
+        return `${dia}/${mes}/${ano}`;
+      }
+      return dataStr;
+    } catch {
+      return dataStr;
+    }
+  };
+
   async function handleBuscar() {
     setLoading(true);
     setError(null);
@@ -124,7 +139,7 @@ function App() {
                         {pedido.cliente || "Sem Nome"}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Entrega: {pedido.data_entrega || "N/A"}
+                        Entrega: {formatarData(pedido.data_entrega)}
                       </Typography>
                     </Box>
                     <Typography variant="body2" sx={{ fontWeight: "bold", bgcolor: "primary.light", color: "white", px: 2, py: 0.5, borderRadius: 10 }}>
