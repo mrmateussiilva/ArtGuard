@@ -4,7 +4,6 @@ mod indexer;
 mod validator;
 mod commands;
 
-use serde::{Deserialize, Serialize};
 use commands::index_storage::index_storage;
 use commands::validate_order::validate_order;
 

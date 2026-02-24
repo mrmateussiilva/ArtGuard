@@ -22,12 +22,13 @@ pub async fn index_storage(storage_path: String) -> Result<String, String> {
     let images: Vec<ImageMetadata> = files.into_par_iter().filter_map(|p| {
         if let Ok((hashes, width, height)) = generate_hashes(&p) {
             let metadata = std::fs::metadata(&p).ok();
-            let modified = metadata.and_then(|m| m.modified().ok())
+            let modified = metadata.as_ref()
+                .and_then(|m| m.modified().ok())
                 .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             
-            let size = metadata.map(|m| m.len()).unwrap_or(0);
+            let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
             let format = p.extension().and_then(|s| s.to_str()).unwrap_or("unknown").to_string();
 
             Some(ImageMetadata {

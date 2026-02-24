@@ -1,7 +1,7 @@
 use std::path::Path;
 use sha2::{Sha256, Digest};
 use img_hash::{HasherConfig, HashAlg};
-use image::DynamicImage;
+use image::GenericImageView;
 use crate::utils::image_normalizer::normalize_image;
 
 pub struct Hashes {
@@ -27,7 +27,8 @@ pub fn generate_hashes(path: &Path) -> Result<(Hashes, u32, u32), String> {
         .to_hasher();
     
     let hash = phash_generator.hash_image(&normalized);
-    let phash = format!("{:x}", hash);
+    // Convert 8x8 (64-bit) hash bits to a hex string
+    let phash = hash.as_bytes().iter().map(|b| format!("{:02x}", b)).collect::<String>();
 
     Ok((Hashes { phash, sha256 }, width, height))
 }
