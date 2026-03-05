@@ -22,6 +22,7 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import ErrorIcon from "@mui/icons-material/Error";
 import InfoIcon from "@mui/icons-material/Info";
+import { VerificationActionsDialog, ValidationItemResult } from "./VerificationActionsDialog";
 
 interface IndexedImage {
     name: string;
@@ -52,6 +53,7 @@ export function ValidationModal({ open, onClose, referenceUrl, storagePath }: Va
     const [loading, setLoading] = useState(false);
     const [stage, setStage] = useState<string>("waiting");
     const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+    const [verificationOpen, setVerificationOpen] = useState(false);
 
     // Load indexed images when modal opens
     useEffect(() => {
@@ -120,6 +122,23 @@ export function ValidationModal({ open, onClose, referenceUrl, storagePath }: Va
     };
 
     const currentImage = images[currentIndex];
+
+    const verificationItem: ValidationItemResult | null = result && currentImage
+        ? {
+            url: referenceUrl,
+            status: result.status,
+            score: result.score,
+            matched_file: currentImage.path.startsWith(storagePath)
+                ? currentImage.path.slice(storagePath.length).replace(/^[/\\]+/, "")
+                : currentImage.name,
+            width: currentImage.width,
+            height: currentImage.height,
+            dpi_x: null,
+            dpi_y: null,
+            dpi_ok: undefined,
+            measure_ok: null,
+        }
+        : null;
 
     // Load image as base64 whenever currentImage changes
     useEffect(() => {
@@ -228,6 +247,15 @@ export function ValidationModal({ open, onClose, referenceUrl, storagePath }: Va
                                                 {result.status === "approved" ? "Aprovado" : result.score >= 80 ? "Atenção" : "Divergente"}
                                             </Typography>
                                         </Stack>
+                                        {result.matched_file && (
+                                            <Button
+                                                variant="contained"
+                                                onClick={() => setVerificationOpen(true)}
+                                                sx={{ mt: 2, borderRadius: "8px", bgcolor: "#1e293b", "&:hover": { bgcolor: "#334155" } }}
+                                            >
+                                                Verificações
+                                            </Button>
+                                        )}
                                     </Box>
                                 </Fade>
                             )}
@@ -259,6 +287,16 @@ export function ValidationModal({ open, onClose, referenceUrl, storagePath }: Va
                     Próxima
                 </Button>
             </DialogActions>
+
+            {verificationOpen && verificationItem && (
+                <VerificationActionsDialog
+                    open={true}
+                    onClose={() => setVerificationOpen(false)}
+                    item={verificationItem}
+                    itemIndex={0}
+                    storagePath={storagePath}
+                />
+            )}
         </Dialog>
     );
 }
