@@ -6,6 +6,8 @@ import InfoIcon from '@mui/icons-material/Info';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
 import {
   Typography,
   TextField,
@@ -38,8 +40,6 @@ import {
 import { open } from "@tauri-apps/plugin-dialog";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import CloseIcon from "@mui/icons-material/Close";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import ImageSearchIcon from "@mui/icons-material/ImageSearch";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
@@ -238,80 +238,73 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
     }
   };
 
+  const completedCount = phases.filter((p) => p.status === "success").length;
+  const currentPhase = phases.find((p) => p.status === "running");
+  const allDone = result != null;
+
   return (
     <Dialog
       open={open}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
       PaperProps={{
         sx: { borderRadius: "16px", p: 1 }
       }}
     >
-      <DialogTitle sx={{ m: 0, p: 3, pb: 1 }} component="div">
-        <Typography variant="h6" component="div" sx={{ fontWeight: 800, color: "#0F172A", textTransform: "uppercase", fontSize: "1rem" }}>
+      <DialogTitle sx={{ m: 0, p: 2, pb: 0.5 }} component="div">
+        <Typography variant="h6" component="div" sx={{ fontWeight: 800, color: "#0F172A", textTransform: "uppercase", fontSize: "0.95rem" }}>
           Validando Pedido #{pedido?.numero || pedido?.id}
         </Typography>
-        <Typography variant="body2" sx={{ color: "#64748B", fontWeight: 500 }}>
+        <Typography variant="caption" sx={{ color: "#64748B", fontWeight: 500 }}>
           Processamento visual automatizado
         </Typography>
         <IconButton
           aria-label="close"
           onClick={onClose}
-          sx={{ position: 'absolute', right: 16, top: 16, color: "#94A3B8" }}
+          sx={{ position: 'absolute', right: 12, top: 12, color: "#94A3B8" }}
         >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
       <DialogContent sx={{ p: 0 }}>
-        <Box sx={{ px: 4, py: 3 }}>
-          <Box sx={{ position: "relative" }}>
-            <Box sx={{
-              position: "absolute",
-              left: 10,
-              top: 10,
-              bottom: 10,
-              width: "2px",
-              bgcolor: "#F1F5F9",
-              zIndex: 0
-            }} />
-
-            {phases.map((phase) => (
-              <Box key={phase.id} sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 2,
-                mb: 3,
-                position: "relative",
-                zIndex: 1
-              }}>
+        <Box sx={{ px: 3, py: 2 }}>
+          {/* Progresso em uma linha: ícones conectados */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0, mb: 1.5 }}>
+            {phases.map((phase, i) => (
+              <Box key={phase.id} sx={{ display: "flex", alignItems: "center", flex: i < phases.length - 1 ? 0 : 1 }}>
                 <Box sx={{
-                  width: 22,
-                  height: 22,
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  bgcolor: "white"
+                  bgcolor: phase.status === "success" ? "#DCFCE7" : phase.status === "running" ? "#E0F2FE" : "#F1F5F9",
+                  border: `2px solid ${phase.status === "success" ? "#16a34a" : phase.status === "running" ? "#0ea5e9" : "#e2e8f0"}`,
+                  flexShrink: 0
                 }}>
-                  {getStatusIcon(phase.status)}
+                  {phase.status === "success" ? (
+                    <CheckCircleIcon sx={{ fontSize: 16, color: "#16a34a" }} />
+                  ) : phase.status === "running" ? (
+                    <CircularProgress size={14} thickness={5} sx={{ color: "#0ea5e9" }} />
+                  ) : (
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#94A3B8" }}>{i + 1}</Typography>
+                  )}
                 </Box>
-                <Box sx={{ flexGrow: 1 }}>
-                  <Typography variant="subtitle2" sx={{
-                    fontWeight: 700,
-                    color: phase.status === "pending" ? "#94A3B8" : "#1E293B",
-                    fontSize: "0.9rem"
-                  }}>
-                    {phase.label}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: "#94A3B8", display: "block", mt: -0.5 }}>
-                    {phase.status === "running" ? "Em processamento..." : phase.status === "success" ? "Concluído" : ""}
-                  </Typography>
-                </Box>
-                <Box sx={{ color: "#94A3B8", opacity: phase.status === "pending" ? 0.3 : 1 }}>
-                  {phase.icon}
-                </Box>
+                {i < phases.length - 1 && (
+                  <Box sx={{
+                    width: 20,
+                    height: 2,
+                    bgcolor: phase.status === "success" ? "#86efac" : "#e2e8f0",
+                    mx: 0.25
+                  }} />
+                )}
               </Box>
             ))}
           </Box>
+          <Typography variant="caption" sx={{ color: "#64748B", display: "block", textAlign: "center" }}>
+            {allDone ? "Concluído" : currentPhase ? currentPhase.label : `${completedCount} de ${phases.length} etapas`}
+          </Typography>
 
           {localError && (
             <Alert severity="error" sx={{ mt: 2, borderRadius: "12px" }}>
@@ -322,8 +315,8 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
           {result && (
             <FadeIn>
               <Paper elevation={0} sx={{
-                mt: 4,
-                p: 3,
+                mt: 2,
+                p: 2,
                 bgcolor:
                   result.status === "approved" ? "#F0FDF4" :
                     result.status === "attention" ? "#FFFBEB" : "#FEF2F2",
@@ -341,12 +334,12 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
                 }}>
                   Resultado da Validação
                 </Typography>
-                <Typography variant="h4" sx={{
+                <Typography variant="h5" sx={{
                   fontWeight: 900,
                   color:
                     result.status === "approved" ? "#15803d" :
                       result.status === "attention" ? "#D97706" : "#b91c1c",
-                  my: 1,
+                  my: 0.5,
                   textTransform: "uppercase"
                 }}>
                   {result.status === "approved" ? "Aprovado" :
@@ -358,17 +351,17 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
               </Paper>
 
               {result.items && result.items.length > 0 && (
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#64748B", mb: 1.5, textAlign: "left" }}>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#64748B", mb: 1, textAlign: "left" }}>
                     Por item — aplicar verificações
                   </Typography>
-                  <Stack spacing={1}>
+                  <Stack spacing={0.75}>
                     {result.items.map((it, idx) => (
                       <Paper
                         key={idx}
                         variant="outlined"
                         sx={{
-                          p: 1.5,
+                          p: 1.25,
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "space-between",
@@ -390,9 +383,27 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
                               fontSize: "0.75rem"
                             }}
                           />
-                          <Typography variant="caption" sx={{ color: "#64748B" }}>
-                            Score: {it.score.toFixed(0)}% • DPI: {it.dpi_ok ? "OK" : it.dpi_x != null ? "baixo" : "—"} • Medida: {it.measure_ok === true ? "OK" : it.measure_ok === false ? "baixo" : "—"}
-                          </Typography>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                            <Typography component="span" variant="caption" sx={{ color: "#64748B" }}>
+                              Score: {it.score.toFixed(0)}%
+                            </Typography>
+                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
+                              <Typography component="span" variant="caption" sx={{ color: it.dpi_ok === false ? "#b45309" : "#64748B", fontWeight: it.dpi_ok === false ? 600 : 400 }}>
+                                DPI: {it.dpi_x != null && it.dpi_y != null ? `${Math.round(it.dpi_x)}×${Math.round(it.dpi_y)}` : "—"}
+                                {it.dpi_ok === true && " OK"}
+                                {it.dpi_ok === false && " Abaixo"}
+                              </Typography>
+                              {it.dpi_ok === true && <CheckCircleIcon sx={{ fontSize: 14, color: "#16a34a", verticalAlign: "middle" }} />}
+                              {it.dpi_ok === false && <ErrorIcon sx={{ fontSize: 14, color: "#dc2626", verticalAlign: "middle" }} />}
+                            </Box>
+                            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}>
+                              <Typography component="span" variant="caption" sx={{ color: it.measure_ok === false ? "#b45309" : "#64748B", fontWeight: it.measure_ok === false ? 600 : 400 }}>
+                                Medida: {it.measure_ok === true ? "OK" : it.measure_ok === false ? "Abaixo" : "—"}
+                                {it.measure_ok === true && <CheckCircleIcon sx={{ fontSize: 14, color: "#16a34a", verticalAlign: "middle" }} />}
+                                {it.measure_ok === false && <ErrorIcon sx={{ fontSize: 14, color: "#dc2626", verticalAlign: "middle" }} />}
+                              </Typography>
+                            </Box>
+                          </Box>
                         </Box>
                         <Button
                           variant="contained"
