@@ -23,8 +23,10 @@ Objetivo: automatizar processos com as imagens da pasta de impressão, validando
 ## Recursos adicionais (imagem)
 
 - **Medida e resolução (DPI):** Na indexação, o DPI é lido dos metadados (EXIF para JPEG/TIFF, pHYs para PNG) e armazenado no índice. Na validação do pedido, cada imagem é verificada contra `min_dpi` (configuração) e, quando o pedido informa largura/altura em cm por item, a medida é convertida para pixels (cm × DPI / 2,54) e validada. O resultado inclui `dpi_x`, `dpi_y`, `dpi_ok` e `measure_ok` por item.
-- **Recorte em partes:** Comando `crop_image_into_parts(sourcePath, outputDir, regions, outputBasename)` — `regions` é uma lista de `{ x, y, width, height }` em pixels; cada região é salva como `outputBasename_0.ext`, `outputBasename_1.ext`, etc.
-- **Texto na região:** Comando `draw_text_on_image(sourcePath, outputPath, text, x, y, width, height, fontPath, fontSize)` — desenha o texto com canto superior esquerdo em (x, y), usando a fonte TTF em `fontPath` e o tamanho indicado; salva em `outputPath`.
+- **Recorte em partes:** Comando `crop_image_into_parts` — ver [docs/API.md](docs/API.md).
+- **Texto na região:** Comando `draw_text_on_image` — ver [docs/API.md](docs/API.md).
+
+A documentação completa dos comandos Tauri (parâmetros e retornos) está em **[docs/API.md](docs/API.md)**.
 
 ## Stack
 
