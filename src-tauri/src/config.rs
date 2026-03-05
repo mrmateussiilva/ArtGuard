@@ -25,6 +25,9 @@ pub struct ValidationConfig {
 pub struct AppConfig {
     pub api_url: String,
     pub storage_path: String,
+    /// Último caminho da fonte .ttf usado em "Escrever nome na imagem" (persistido para pré-preencher).
+    #[serde(default)]
+    pub default_font_path: Option<String>,
     pub validation: ValidationConfig,
 }
 
@@ -33,6 +36,7 @@ impl Default for AppConfig {
         Self {
             api_url: "http://localhost:8000/pedidos/".to_string(),
             storage_path: "".to_string(),
+            default_font_path: None,
             validation: ValidationConfig {
                 threshold_approved: 90.0,
                 threshold_attention: 70.0,
