@@ -1,4 +1,4 @@
-use image::{DynamicImage, GenericImageView, imageops::FilterType};
+use image::{DynamicImage, imageops::FilterType};
 
 pub fn normalize_image(img: DynamicImage) -> DynamicImage {
     // 1. Convert to RGB (removes alpha channel and potential CMYK issues)

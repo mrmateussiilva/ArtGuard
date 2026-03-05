@@ -9,6 +9,12 @@ pub struct ImageMetadata {
     pub path: PathBuf,
     pub width: u32,
     pub height: u32,
+    /// DPI na direção X (quando disponível nos metadados).
+    #[serde(default)]
+    pub dpi_x: Option<f32>,
+    /// DPI na direção Y (quando disponível nos metadados).
+    #[serde(default)]
+    pub dpi_y: Option<f32>,
     pub format: String,
     pub size_bytes: u64,
     pub modified_at: u64,

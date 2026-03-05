@@ -20,6 +20,7 @@ import {
   AccordionDetails,
   Grid,
   Chip,
+  Stack,
   ThemeProvider,
   createTheme,
   CssBaseline,
@@ -50,6 +51,7 @@ import ShieldIcon from "@mui/icons-material/Shield";
 import SaveIcon from "@mui/icons-material/Save";
 import LayersIcon from "@mui/icons-material/Layers";
 import { ValidationModal as AssistedValidationModal } from "./components/ValidationModal";
+import { VerificationActionsDialog, type ValidationItemResult } from "./components/VerificationActionsDialog";
 
 const getImageUrl = (path: string | undefined, apiUrl: string) => {
   if (!path) return "";
@@ -162,8 +164,14 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
   const [phases, setPhases] = useState<ValidationPhase[]>(
     STAGES_CONFIG.map(s => ({ ...s, status: "pending" }))
   );
-  const [result, setResult] = useState<{ score: number; status: string } | null>(null);
+  const [result, setResult] = useState<{
+    score: number;
+    status: string;
+    items?: ValidationItemResult[];
+    total_items?: number;
+  } | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [verificationItemIndex, setVerificationItemIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (open && pedido) {
@@ -185,16 +193,23 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
             }
           });
 
-          const imageUrls = (pedido.items || [])
-            .filter(item => item.imagem)
-            .map(item => getImageUrl(item.imagem, apiUrl));
+          const itemsWithImage = (pedido.items || []).filter(item => item.imagem);
+          const imageUrls = itemsWithImage.map(item => getImageUrl(item.imagem, apiUrl));
+          const measuresCm = itemsWithImage.map(item => [
+            parseFloat(item.largura) || 0,
+            parseFloat(item.altura) || 0
+          ]);
+          const itemMeasuresCm = measuresCm.every(([a, b]) => a > 0 && b > 0)
+            ? measuresCm
+            : undefined;
 
           await invoke("validate_order", {
             orderId: pedido.id,
-            imageUrls: imageUrls,
+            imageUrls,
             storagePath,
             thresholdApproved: thresholdApproved,
-            thresholdAttention: thresholdAttention
+            thresholdAttention: thresholdAttention,
+            itemMeasuresCm: itemMeasuresCm ?? null
           });
         } catch (err: any) {
           console.error("Validation error:", err);
@@ -338,9 +353,75 @@ function ValidationModal({ open, onClose, pedido, storagePath, apiUrl, threshold
                     result.status === "attention" ? "Atenção" : "Divergente"}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 600, color: "#475569" }}>
-                  Score de Similaridade: {result.score.toFixed(1)}%
+                  Score médio: {result.score.toFixed(1)}%
                 </Typography>
               </Paper>
+
+              {result.items && result.items.length > 0 && (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "#64748B", mb: 1.5, textAlign: "left" }}>
+                    Por item — aplicar verificações
+                  </Typography>
+                  <Stack spacing={1}>
+                    {result.items.map((it, idx) => (
+                      <Paper
+                        key={idx}
+                        variant="outlined"
+                        sx={{
+                          p: 1.5,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          borderRadius: "10px",
+                          bgcolor: "#f8fafc"
+                        }}
+                      >
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: "#0F172A" }}>
+                            Item {idx + 1}
+                          </Typography>
+                          <Chip
+                            size="small"
+                            label={it.matched_file || "Sem match"}
+                            sx={{
+                              bgcolor: it.matched_file ? "#E0F2FE" : "#FEE2E2",
+                              color: it.matched_file ? "#0369A1" : "#B91C1C",
+                              fontWeight: 600,
+                              fontSize: "0.75rem"
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ color: "#64748B" }}>
+                            Score: {it.score.toFixed(0)}% • DPI: {it.dpi_ok ? "OK" : it.dpi_x != null ? "baixo" : "—"} • Medida: {it.measure_ok === true ? "OK" : it.measure_ok === false ? "baixo" : "—"}
+                          </Typography>
+                        </Box>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          onClick={() => setVerificationItemIndex(idx)}
+                          sx={{
+                            borderRadius: "8px",
+                            bgcolor: "#1e293b",
+                            "&:hover": { bgcolor: "#334155" }
+                          }}
+                        >
+                          Verificações
+                        </Button>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {verificationItemIndex !== null && result.items?.[verificationItemIndex] && (
+                <VerificationActionsDialog
+                  open={true}
+                  onClose={() => setVerificationItemIndex(null)}
+                  item={result.items[verificationItemIndex]}
+                  itemIndex={verificationItemIndex}
+                  storagePath={storagePath}
+                  defaultText={(pedido?.items as Item[] | undefined)?.filter((i: Item) => i.imagem)[verificationItemIndex]?.descricao}
+                />
+              )}
             </FadeIn>
           )}
         </Box>
@@ -374,6 +455,7 @@ function App() {
   // Validation Config States
   const [thresholdApproved, setThresholdApproved] = useState(90);
   const [thresholdAttention, setThresholdAttention] = useState(70);
+  const [minMatchScore, setMinMatchScore] = useState(50);
   const [minDpi, setMinDpi] = useState(150);
   const [acceptedFormats, setAcceptedFormats] = useState("PNG, JPG, TIFF, WEBP");
 
@@ -405,6 +487,7 @@ function App() {
         setStoragePath(config.storage_path);
         setThresholdApproved(config.validation.threshold_approved);
         setThresholdAttention(config.validation.threshold_attention);
+        setMinMatchScore(config.validation.min_match_score ?? 50);
         setMinDpi(config.validation.min_dpi);
         setAcceptedFormats(config.validation.accepted_formats.join(", ").toUpperCase());
       } catch (err) {
@@ -423,6 +506,7 @@ function App() {
         validation: {
           threshold_approved: thresholdApproved,
           threshold_attention: thresholdAttention,
+          min_match_score: minMatchScore,
           min_dpi: minDpi,
           accepted_formats: acceptedFormats.split(",").map(s => s.trim().toLowerCase()).filter(s => s !== ""),
           hash_algorithm: "Mean",
@@ -880,6 +964,19 @@ function App() {
                       variant="outlined"
                       value={thresholdAttention}
                       onChange={(e) => setThresholdAttention(Number(e.target.value))}
+                      sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 6 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: "#374151", mb: 1, display: "block" }}>
+                      Score mínimo para match (%)
+                    </Typography>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      variant="outlined"
+                      value={minMatchScore}
+                      onChange={(e) => setMinMatchScore(Number(e.target.value))}
                       sx={{ '& .MuiOutlinedInput-root': { bgcolor: '#F9FAFB' } }}
                     />
                   </Grid>

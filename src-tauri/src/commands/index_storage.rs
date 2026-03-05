@@ -2,6 +2,7 @@ use crate::models::image_index::{ImageIndex, ImageMetadata};
 use crate::indexer::scanner::scan_directory;
 use crate::indexer::hasher::generate_hashes;
 use crate::indexer::writer::save_index;
+use crate::utils::dpi::read_dpi_from_path;
 use rayon::prelude::*;
 use std::path::Path;
 use std::time::SystemTime;
@@ -30,6 +31,7 @@ pub async fn index_storage(storage_path: String) -> Result<String, String> {
             
             let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
             let format = p.extension().and_then(|s| s.to_str()).unwrap_or("unknown").to_string();
+            let (dpi_x, dpi_y) = read_dpi_from_path(&p).map(|(x, y)| (Some(x), Some(y))).unwrap_or((None, None));
 
             Some(ImageMetadata {
                 phash: hashes.phash,
@@ -38,6 +40,8 @@ pub async fn index_storage(storage_path: String) -> Result<String, String> {
                 path: p,
                 width,
                 height,
+                dpi_x,
+                dpi_y,
                 format,
                 size_bytes: size,
                 modified_at: modified,

@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+
+fn default_min_match_score() -> f32 {
+    50.0
+}
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
@@ -7,6 +11,9 @@ use tauri::Manager;
 pub struct ValidationConfig {
     pub threshold_approved: f32,
     pub threshold_attention: f32,
+    /// Minimum perceptual match score (0–100) to consider an image as matched in the index.
+    #[serde(default = "default_min_match_score")]
+    pub min_match_score: f32,
     pub min_dpi: u32,
     pub accepted_formats: Vec<String>,
     pub hash_algorithm: String,
@@ -29,6 +36,7 @@ impl Default for AppConfig {
             validation: ValidationConfig {
                 threshold_approved: 90.0,
                 threshold_attention: 70.0,
+                min_match_score: 50.0,
                 min_dpi: 150,
                 accepted_formats: vec![
                     "png".to_string(),

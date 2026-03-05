@@ -1,6 +1,7 @@
 use crate::models::image_index::{ImageIndex, ImageMetadata};
 use crate::indexer::hasher::Hashes;
 use crate::validator::scorer::calculate_score;
+use log::{debug, error, info, warn};
 
 pub struct MatchResult {
     pub metadata: ImageMetadata,
@@ -8,31 +9,46 @@ pub struct MatchResult {
     pub match_type: String, // "exact" or "perceptual"
 }
 
+/// Minimum perceptual match score (0-100) to consider a match. Callers can override via `find_match_with_min_score`.
+const DEFAULT_MIN_MATCH_SCORE: f32 = 50.0;
+
 pub fn find_match(index: &ImageIndex, target_hashes: &Hashes) -> Option<MatchResult> {
-    println!("[ArtGuard][Matcher] Buscando match para SHA256: {}...{}", &target_hashes.sha256[..8], &target_hashes.sha256[target_hashes.sha256.len()-8..]);
-    println!("[ArtGuard][Matcher] Target pHash: {}", target_hashes.phash);
-    println!("[ArtGuard][Matcher] Índice contém {} imagens", index.images.len());
+    find_match_with_min_score(index, target_hashes, DEFAULT_MIN_MATCH_SCORE)
+}
+
+pub fn find_match_with_min_score(
+    index: &ImageIndex,
+    target_hashes: &Hashes,
+    min_score: f32,
+) -> Option<MatchResult> {
+    debug!(
+        "Buscando match para SHA256: {}...{}",
+        &target_hashes.sha256[..8.min(target_hashes.sha256.len())],
+        &target_hashes.sha256[target_hashes.sha256.len().saturating_sub(8)..]
+    );
+    debug!("Target pHash: {}", target_hashes.phash);
+    debug!("Índice contém {} imagens", index.images.len());
 
     // 1. Try exact match via SHA256
     if let Some(meta) = index.images.iter().find(|m| m.sha256 == target_hashes.sha256) {
-        println!("[ArtGuard][Matcher] ✅ SHA256 EXATO encontrado: {}", meta.name);
+        info!("SHA256 exato encontrado: {}", meta.name);
         return Some(MatchResult {
             metadata: meta.clone(),
             score: 100.0,
             match_type: "exact".to_string(),
         });
     }
-    println!("[ArtGuard][Matcher] SHA256 não encontrado, tentando pHash...");
+    debug!("SHA256 não encontrado, tentando pHash...");
 
     // 2. Try perceptual match via pHash
     let target_phash = match u64::from_str_radix(&target_hashes.phash, 16) {
         Ok(v) => v,
         Err(e) => {
-            println!("[ArtGuard][Matcher] ❌ Erro ao parsear pHash target '{}': {}", target_hashes.phash, e);
+            error!("Erro ao parsear pHash target '{}': {}", target_hashes.phash, e);
             return None;
         }
     };
-    
+
     let mut best_match: Option<(ImageMetadata, f32, u32)> = None;
 
     for meta in &index.images {
@@ -40,8 +56,11 @@ pub fn find_match(index: &ImageIndex, target_hashes: &Hashes) -> Option<MatchRes
             let distance = (target_phash ^ meta_phash).count_ones();
             let score = calculate_score(distance, 64); // 8x8 = 64 bits
 
-            if score >= 50.0 {
-                println!("[ArtGuard][Matcher] 📊 {} → distância: {}/64, score: {:.1}%", meta.name, distance, score);
+            if score >= min_score {
+                debug!(
+                    "{} → distância: {}/64, score: {:.1}%",
+                    meta.name, distance, score
+                );
             }
 
             match best_match {
@@ -54,10 +73,12 @@ pub fn find_match(index: &ImageIndex, target_hashes: &Hashes) -> Option<MatchRes
         }
     }
 
-    // Only return matches above a minimum threshold of 50%
     match best_match {
-        Some((metadata, score, distance)) if score >= 50.0 => {
-            println!("[ArtGuard][Matcher] 🏆 Melhor match: {} (Score: {:.1}%, Distância: {})", metadata.name, score, distance);
+        Some((metadata, score, distance)) if score >= min_score => {
+            info!(
+                "Melhor match: {} (Score: {:.1}%, Distância: {})",
+                metadata.name, score, distance
+            );
             Some(MatchResult {
                 metadata,
                 score,
@@ -65,11 +86,14 @@ pub fn find_match(index: &ImageIndex, target_hashes: &Hashes) -> Option<MatchRes
             })
         }
         Some((metadata, score, _)) => {
-            println!("[ArtGuard][Matcher] ⚠️ Melhor candidato {} descartado (Score: {:.1}% < 50%)", metadata.name, score);
+            warn!(
+                "Melhor candidato {} descartado (Score: {:.1}% < {}%)",
+                metadata.name, score, min_score
+            );
             None
         }
         None => {
-            println!("[ArtGuard][Matcher] ❌ Nenhum candidato encontrado no índice");
+            debug!("Nenhum candidato encontrado no índice");
             None
         }
     }
